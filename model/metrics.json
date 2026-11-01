@@ -1,0 +1,309 @@
+{
+  "model_name": "SpamGuard Multinomial Naive Bayes + TF-IDF",
+  "dataset_name": "Apache SpamAssassin Public Email Corpus",
+  "total_dataset_samples": 4235,
+  "ham_samples": 2471,
+  "spam_samples": 1764,
+  "train_samples": 3388,
+  "test_samples": 847,
+  "vocabulary_size": 15000,
+  "metrics": {
+    "accuracy": 0.9835,
+    "precision": 0.9942,
+    "recall": 0.966,
+    "f1_score": 0.9799,
+    "accuracy_percent": 98.35,
+    "precision_percent": 99.42,
+    "recall_percent": 96.6,
+    "f1_percent": 97.99
+  },
+  "confusion_matrix": {
+    "matrix": [
+      [
+        492,
+        2
+      ],
+      [
+        12,
+        341
+      ]
+    ],
+    "true_negatives": 492,
+    "false_positives": 2,
+    "false_negatives": 12,
+    "true_positives": 341
+  },
+  "classification_report": {
+    "Ham": {
+      "precision": 0.9761904761904762,
+      "recall": 0.9959514170040485,
+      "f1-score": 0.9859719438877755,
+      "support": 494.0
+    },
+    "Spam": {
+      "precision": 0.9941690962099126,
+      "recall": 0.9660056657223796,
+      "f1-score": 0.9798850574712644,
+      "support": 353.0
+    },
+    "accuracy": 0.9834710743801653,
+    "macro avg": {
+      "precision": 0.9851797862001943,
+      "recall": 0.980978541363214,
+      "f1-score": 0.98292850067952,
+      "support": 847.0
+    },
+    "weighted avg": {
+      "precision": 0.9836833367180571,
+      "recall": 0.9834710743801653,
+      "f1-score": 0.98343514234701,
+      "support": 847.0
+    }
+  },
+  "top_spam_keywords": [
+    {
+      "word": "mortgage",
+      "log_ratio": 4.842
+    },
+    {
+      "word": "wish receive",
+      "log_ratio": 4.793
+    },
+    {
+      "word": "remove subject",
+      "log_ratio": 4.78
+    },
+    {
+      "word": "click httpaddr",
+      "log_ratio": 4.754
+    },
+    {
+      "word": "list click",
+      "log_ratio": 4.691
+    },
+    {
+      "word": "removed mailing",
+      "log_ratio": 4.627
+    },
+    {
+      "word": "mailings",
+      "log_ratio": 4.583
+    },
+    {
+      "word": "sightings mailing",
+      "log_ratio": 4.503
+    },
+    {
+      "word": "deathtospamdeathtospamdeathtospam",
+      "log_ratio": 4.442
+    },
+    {
+      "word": "deathtospamdeathtospamdeathtospam sf",
+      "log_ratio": 4.442
+    },
+    {
+      "word": "refinance",
+      "log_ratio": 4.427
+    },
+    {
+      "word": "life insurance",
+      "log_ratio": 4.387
+    },
+    {
+      "word": "city state",
+      "log_ratio": 4.384
+    },
+    {
+      "word": "future mailings",
+      "log_ratio": 4.272
+    },
+    {
+      "word": "receive mailings",
+      "log_ratio": 4.25
+    },
+    {
+      "word": "click removed",
+      "log_ratio": 4.199
+    },
+    {
+      "word": "lenders",
+      "log_ratio": 4.172
+    },
+    {
+      "word": "removed future",
+      "log_ratio": 4.17
+    },
+    {
+      "word": "legal notice",
+      "log_ratio": 4.119
+    },
+    {
+      "word": "professional communication",
+      "log_ratio": 4.118
+    },
+    {
+      "word": "unsubscribed",
+      "log_ratio": 4.118
+    },
+    {
+      "word": "click unsubscribe",
+      "log_ratio": 4.115
+    },
+    {
+      "word": "instead httpaddr",
+      "log_ratio": 4.112
+    },
+    {
+      "word": "insurance professionals",
+      "log_ratio": 4.104
+    },
+    {
+      "word": "sent insurance",
+      "log_ratio": 4.104
+    },
+    {
+      "word": "professionals removed",
+      "log_ratio": 4.104
+    },
+    {
+      "word": "communication sent",
+      "log_ratio": 4.104
+    },
+    {
+      "word": "subject adv",
+      "log_ratio": 4.093
+    },
+    {
+      "word": "price dollar_amount",
+      "log_ratio": 4.081
+    },
+    {
+      "word": "httpaddr legal",
+      "log_ratio": 4.08
+    }
+  ],
+  "top_ham_keywords": [
+    {
+      "word": "httpaddr date",
+      "log_ratio": -5.902
+    },
+    {
+      "word": "date supplied",
+      "log_ratio": -5.405
+    },
+    {
+      "word": "exmh",
+      "log_ratio": -5.05
+    },
+    {
+      "word": "wrote",
+      "log_ratio": -5.014
+    },
+    {
+      "word": "razor",
+      "log_ratio": -5.012
+    },
+    {
+      "word": "rpm list",
+      "log_ratio": -4.965
+    },
+    {
+      "word": "list mailing",
+      "log_ratio": -4.961
+    },
+    {
+      "word": "_______________________________________________ rpm",
+      "log_ratio": -4.957
+    },
+    {
+      "word": "yahoo groups",
+      "log_ratio": -4.904
+    },
+    {
+      "word": "rpm",
+      "log_ratio": -4.851
+    },
+    {
+      "word": "date num_token",
+      "log_ratio": -4.789
+    },
+    {
+      "word": "spambayes",
+      "log_ratio": -4.747
+    },
+    {
+      "word": "num_token sep",
+      "log_ratio": -4.731
+    },
+    {
+      "word": "perl",
+      "log_ratio": -4.708
+    },
+    {
+      "word": "matthias",
+      "log_ratio": -4.687
+    },
+    {
+      "word": "users mailing",
+      "log_ratio": -4.654
+    },
+    {
+      "word": "razor users",
+      "log_ratio": -4.615
+    },
+    {
+      "word": "url httpaddr",
+      "log_ratio": -4.603
+    },
+    {
+      "word": "apt",
+      "log_ratio": -4.586
+    },
+    {
+      "word": "num_token discuss",
+      "log_ratio": -4.562
+    },
+    {
+      "word": "bug",
+      "log_ratio": -4.548
+    },
+    {
+      "word": "use yahoo",
+      "log_ratio": -4.544
+    },
+    {
+      "word": "groups subject",
+      "log_ratio": -4.542
+    },
+    {
+      "word": "unsubscribe group",
+      "log_ratio": -4.542
+    },
+    {
+      "word": "group send",
+      "log_ratio": -4.542
+    },
+    {
+      "word": "subject spambayes",
+      "log_ratio": -4.535
+    },
+    {
+      "word": "zzzzteana",
+      "log_ratio": -4.533
+    },
+    {
+      "word": "subject zzzzteana",
+      "log_ratio": -4.529
+    },
+    {
+      "word": "red hat",
+      "log_ratio": -4.527
+    },
+    {
+      "word": "img",
+      "log_ratio": -4.491
+    }
+  ],
+  "training_time_seconds": 1.218,
+  "trained_at": "2026-11-01 14:35:33 UTC"
+}

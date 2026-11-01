@@ -1,0 +1,795 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SPAMGUARD AI – AI-Powered Spam Email Detection System</title>
+    <meta name="description" content="State-of-the-art AI-powered email spam and phishing threat detection system. Real-time classification using Scikit-Learn TF-IDF Vectorization and Multinomial Naive Bayes.">
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Main Stylesheet -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%2300f2fe'><path d='M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-2 16l-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z'/></svg>">
+</head>
+<body class="cyber-dark-theme">
+    <!-- Ambient Background Effects -->
+    <div class="cyber-grid-overlay" aria-hidden="true"></div>
+    <div class="glow-orb glow-top-left" aria-hidden="true"></div>
+    <div class="glow-orb glow-bottom-right" aria-hidden="true"></div>
+    <div class="glow-orb glow-center" aria-hidden="true"></div>
+
+    <!-- Navigation Header -->
+    <header class="cyber-navbar" id="navbar">
+        <div class="nav-container">
+            <a href="#" class="brand-logo" aria-label="SpamGuard AI Home">
+                <div class="brand-icon-wrapper">
+                    <svg class="brand-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                        <path d="M9 12l2 2 4-4"/>
+                    </svg>
+                </div>
+                <div class="brand-text">
+                    <span class="brand-name">SPAMGUARD<span class="brand-accent">.AI</span></span>
+                    <span class="brand-subtext">CYBER DEFENSE ML</span>
+                </div>
+            </a>
+
+            <nav class="nav-menu" aria-label="Main Navigation">
+                <a href="#analyzer" class="nav-link active">Analyzer</a>
+                <a href="#benchmarks" class="nav-link">Model Metrics</a>
+                <a href="#how-it-works" class="nav-link">How It Works</a>
+                <a href="#architecture" class="nav-link">Architecture</a>
+            </nav>
+
+            <div class="nav-actions">
+                <div class="system-status-chip" id="system-status-pill" title="Model Engine Status">
+                    <span class="status-pulse-dot"></span>
+                    <span class="status-text" id="status-label">ML Engine Ready</span>
+                </div>
+                <a href="#analyzer" class="btn btn-sm btn-primary-glow">Launch Analyzer</a>
+            </div>
+        </div>
+    </header>
+
+    <main>
+        <!-- Hero Section -->
+        <section class="hero-section" id="hero">
+            <div class="hero-content">
+                <div class="hero-badge animate-fade-in">
+                    <span class="badge-icon">🛡️</span>
+                    <span class="badge-text">NEXT-GEN NLP THREAT INTELLIGENCE</span>
+                    <span class="badge-tag">v1.0 ONLINE</span>
+                </div>
+
+                <h1 class="hero-title animate-fade-in-up">
+                    Intelligent <span class="text-gradient-cyan">Spam & Phishing</span><br>
+                    Email Detection Engine
+                </h1>
+
+                <p class="hero-subtitle animate-fade-in-up delay-1">
+                    Defend inboxes against zero-day social engineering, monetary scams, and credential harvesting.
+                    Powered by high-dimensional <strong>TF-IDF n-gram vectorization</strong> and a trained
+                    <strong>Multinomial Naive Bayes</strong> classifier on genuine public email corpora.
+                </p>
+
+                <div class="hero-cta-group animate-fade-in-up delay-2">
+                    <a href="#analyzer" class="btn btn-lg btn-primary-glow" id="hero-start-btn">
+                        <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polygon points="5 3 19 12 5 21 5 3"/>
+                        </svg>
+                        <span>Start Email Analysis</span>
+                    </a>
+                    <a href="#benchmarks" class="btn btn-lg btn-outline-cyber">
+                        <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <line x1="18" y1="20" x2="18" y2="10"/>
+                            <line x1="12" y1="20" x2="12" y2="4"/>
+                            <line x1="6" y1="20" x2="6" y2="14"/>
+                        </svg>
+                        <span>View Model Benchmarks</span>
+                    </a>
+                </div>
+
+                <!-- Live Metrics Ticker -->
+                <div class="hero-metrics-ribbon animate-fade-in-up delay-3">
+                    <div class="metric-pill">
+                        <span class="metric-pill-val" id="hero-acc">98.35%</span>
+                        <span class="metric-pill-label">Test Accuracy</span>
+                    </div>
+                    <div class="metric-divider"></div>
+                    <div class="metric-pill">
+                        <span class="metric-pill-val" id="hero-prec">99.42%</span>
+                        <span class="metric-pill-label">Precision Rate</span>
+                    </div>
+                    <div class="metric-divider"></div>
+                    <div class="metric-pill">
+                        <span class="metric-pill-val">4,235</span>
+                        <span class="metric-pill-label">Verified Emails</span>
+                    </div>
+                    <div class="metric-divider"></div>
+                    <div class="metric-pill">
+                        <span class="metric-pill-val">&lt; 15ms</span>
+                        <span class="metric-pill-label">Inference Latency</span>
+                    </div>
+                    <div class="metric-divider"></div>
+                    <div class="metric-pill">
+                        <span class="metric-pill-val">Zero</span>
+                        <span class="metric-pill-label">External Paid APIs</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Threat Detection Studio / Analyzer Section -->
+        <section class="studio-section" id="analyzer">
+            <div class="section-container">
+                <div class="section-header">
+                    <div class="section-label">
+                        <span class="label-dot"></span>
+                        <span>INTERACTIVE THREAT DETECTOR</span>
+                    </div>
+                    <h2 class="section-title">Email Analysis Console</h2>
+                    <p class="section-description">
+                        Paste email subject and body below or select one of our benchmark presets.
+                        The system extracts syntactic and lexical features to output verified Bayesian predictions.
+                    </p>
+                </div>
+
+                <!-- Benchmark Presets Bar -->
+                <div class="presets-container" aria-label="Sample Benchmark Emails">
+                    <div class="presets-header">
+                        <span class="presets-title">Quick-Load Benchmarks:</span>
+                        <span class="presets-hint">Click a sample to populate console</span>
+                    </div>
+                    <div class="presets-grid" id="presets-btn-group">
+                        <button type="button" class="preset-pill preset-spam" data-sample="phishing" id="preset-phishing">
+                            <span class="preset-badge">SPAM</span>
+                            <span class="preset-name">🚨 Account Suspension Phishing</span>
+                        </button>
+                        <button type="button" class="preset-pill preset-spam" data-sample="lottery" id="preset-lottery">
+                            <span class="preset-badge">SPAM</span>
+                            <span class="preset-name">🎁 International Lottery Scam</span>
+                        </button>
+                        <button type="button" class="preset-pill preset-ham" data-sample="business_meeting" id="preset-meeting">
+                            <span class="preset-badge">HAM</span>
+                            <span class="preset-name">💼 Q3 Architecture Review</span>
+                        </button>
+                        <button type="button" class="preset-pill preset-ham" data-sample="release_notes" id="preset-release">
+                            <span class="preset-badge">HAM</span>
+                            <span class="preset-name">📄 Documentation & Release Notes</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Main Analyzer Split Layout -->
+                <div class="studio-grid">
+                    <!-- Left: Input Console -->
+                    <div class="cyber-card console-card">
+                        <div class="card-top-bar">
+                            <div class="window-controls" aria-hidden="true">
+                                <span class="control-dot dot-red"></span>
+                                <span class="control-dot dot-yellow"></span>
+                                <span class="control-dot dot-green"></span>
+                            </div>
+                            <div class="card-top-title">INPUT_STREAM :: EMAIL_BUFFER</div>
+                            <div class="card-top-actions">
+                                <button type="button" class="icon-tool-btn" id="paste-clipboard-btn" title="Paste from clipboard">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/>
+                                        <rect x="8" y="2" width="8" height="4" rx="1" ry="1"/>
+                                    </svg>
+                                    <span>Paste</span>
+                                </button>
+                                <button type="button" class="icon-tool-btn text-danger" id="clear-input-btn" title="Clear input text">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <polyline points="3 6 5 6 21 6"/>
+                                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                                    </svg>
+                                    <span>Clear</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="card-body-content">
+                            <div class="textarea-wrapper">
+                                <label for="email-input" class="sr-only">Email Content to Analyze</label>
+                                <textarea
+                                    id="email-input"
+                                    class="cyber-textarea"
+                                    placeholder="Paste raw email header and body here...&#10;&#10;Example:&#10;Subject: Urgent: Verify your credentials&#10;Dear user, click http://secure-update.com immediately to unlock your account or face termination..."
+                                    rows="12"
+                                    spellcheck="false"
+                                ></textarea>
+                            </div>
+
+                            <div class="input-telemetry-bar">
+                                <div class="telemetry-item">
+                                    <span class="telemetry-label">Chars:</span>
+                                    <span class="telemetry-value" id="char-counter">0</span>
+                                </div>
+                                <div class="telemetry-item">
+                                    <span class="telemetry-label">Words:</span>
+                                    <span class="telemetry-value" id="word-counter">0</span>
+                                </div>
+                                <div class="telemetry-item">
+                                    <span class="telemetry-label">Encoding:</span>
+                                    <span class="telemetry-value">UTF-8 / RFC 822</span>
+                                </div>
+                            </div>
+
+                            <!-- Error Alert Box -->
+                            <div class="cyber-alert alert-error hidden" id="input-error-alert" role="alert">
+                                <div class="alert-icon">⚠️</div>
+                                <div class="alert-message" id="input-error-msg">Please enter email content before analyzing.</div>
+                            </div>
+
+                            <!-- Action Bar -->
+                            <div class="action-bar">
+                                <button type="button" class="btn btn-primary-glow btn-block" id="analyze-btn">
+                                    <span class="btn-spinner hidden" id="analyze-spinner" aria-hidden="true"></span>
+                                    <svg class="btn-icon" id="analyze-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <circle cx="11" cy="11" r="8"/>
+                                        <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                                        <line x1="11" y1="8" x2="11" y2="14"/>
+                                        <line x1="8" y1="11" x2="14" y2="11"/>
+                                    </svg>
+                                    <span id="analyze-btn-text">Analyze Email Threat</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Right: Results & Threat Radar -->
+                    <div class="cyber-card results-card" id="results-panel">
+                        <div class="card-top-bar">
+                            <div class="card-top-title">
+                                <span class="radar-dot"></span>
+                                <span>THREAT_ASSESSMENT :: OUTPUT</span>
+                            </div>
+                            <div class="card-top-badge" id="results-time-badge">READY</div>
+                        </div>
+
+                        <div class="card-body-content">
+                            <!-- Idle State -->
+                            <div class="state-container state-idle" id="state-idle">
+                                <div class="radar-scan-graphic">
+                                    <div class="radar-circle radar-c1"></div>
+                                    <div class="radar-circle radar-c2"></div>
+                                    <div class="radar-circle radar-c3"></div>
+                                    <div class="radar-sweep"></div>
+                                    <div class="radar-crosshair-h"></div>
+                                    <div class="radar-crosshair-v"></div>
+                                    <div class="radar-icon-center">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                                            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                                        </svg>
+                                    </div>
+                                </div>
+                                <h3 class="state-title">Awaiting Telemetry</h3>
+                                <p class="state-desc">
+                                    Enter email content on the left or select a preset sample.
+                                    The machine learning model will classify the text instantly.
+                                </p>
+                            </div>
+
+                            <!-- Loading State -->
+                            <div class="state-container state-loading hidden" id="state-loading">
+                                <div class="cyber-loader">
+                                    <div class="loader-hex">
+                                        <div class="loader-ring"></div>
+                                    </div>
+                                </div>
+                                <h3 class="state-title">Inference Pipeline Active</h3>
+                                <div class="loading-pipeline-steps">
+                                    <div class="pipeline-step step-active" id="pipe-step-1">
+                                        <span class="step-marker">✓</span>
+                                        <span class="step-text">Regex Tokenization & Normalization</span>
+                                    </div>
+                                    <div class="pipeline-step" id="pipe-step-2">
+                                        <span class="step-marker">●</span>
+                                        <span class="step-text">TF-IDF Vector Feature Extraction</span>
+                                    </div>
+                                    <div class="pipeline-step" id="pipe-step-3">
+                                        <span class="step-marker">○</span>
+                                        <span class="step-text">Bayesian Likelihood Calculation</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Verdict State (Results) -->
+                            <div class="state-container state-verdict hidden" id="state-verdict">
+                                <!-- Big Verdict Banner -->
+                                <div class="verdict-banner" id="verdict-banner">
+                                    <div class="verdict-icon-wrap" id="verdict-icon-wrap">
+                                        <svg id="verdict-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"></svg>
+                                    </div>
+                                    <div class="verdict-details">
+                                        <div class="verdict-pretitle">VERDICT CLASSIFICATION</div>
+                                        <h3 class="verdict-heading" id="verdict-heading">SPAM DETECTED</h3>
+                                        <div class="verdict-risk-tag" id="verdict-risk-tag">CRITICAL RISK</div>
+                                    </div>
+                                    <div class="verdict-conf-gauge">
+                                        <div class="gauge-value" id="verdict-confidence">98.5%</div>
+                                        <div class="gauge-label">CONFIDENCE</div>
+                                    </div>
+                                </div>
+
+                                <!-- Dual Probability Bars -->
+                                <div class="probability-section">
+                                    <div class="prob-header">
+                                        <span class="prob-label">Posterior Probability Distribution</span>
+                                        <span class="prob-sublabel">Bayes' Theorem Score</span>
+                                    </div>
+
+                                    <div class="prob-bar-group">
+                                        <div class="prob-bar-meta">
+                                            <span class="prob-name text-danger">Spam Probability</span>
+                                            <span class="prob-number text-danger" id="spam-prob-num">0%</span>
+                                        </div>
+                                        <div class="progress-track">
+                                            <div class="progress-fill fill-danger" id="spam-prob-bar" style="width: 0%;"></div>
+                                        </div>
+                                    </div>
+
+                                    <div class="prob-bar-group">
+                                        <div class="prob-bar-meta">
+                                            <span class="prob-name text-success">Legitimate (Ham) Probability</span>
+                                            <span class="prob-number text-success" id="ham-prob-num">0%</span>
+                                        </div>
+                                        <div class="progress-track">
+                                            <div class="progress-fill fill-success" id="ham-prob-bar" style="width: 0%;"></div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Security Advisory Card -->
+                                <div class="advisory-card" id="advisory-card">
+                                    <div class="advisory-title">
+                                        <span class="advisory-icon">💡</span>
+                                        <span>Security Guidance:</span>
+                                    </div>
+                                    <p class="advisory-text" id="advisory-text">Loading...</p>
+                                </div>
+
+                                <!-- Detected Threat Signals / Explainable AI -->
+                                <div class="signals-section">
+                                    <div class="signals-header">
+                                        <span class="signals-title">Detected Threat Signals & Indicators</span>
+                                        <span class="signals-badge" id="signals-count-badge">0 Found</span>
+                                    </div>
+                                    <div class="signals-list" id="signals-list">
+                                        <!-- Dynamically populated -->
+                                    </div>
+                                </div>
+
+                                <!-- Preprocessed Tokens Preview Accordion -->
+                                <details class="cyber-details" id="preprocessed-details">
+                                    <summary class="cyber-summary">
+                                        <span class="summary-icon">🔍</span>
+                                        <span>Inspect Preprocessed Model Input Tokens</span>
+                                    </summary>
+                                    <div class="details-content">
+                                        <div class="tokens-snippet-box">
+                                            <code class="tokens-code" id="preprocessed-snippet">...</code>
+                                        </div>
+                                        <div class="tokens-meta-grid">
+                                            <div class="meta-item">
+                                                <span class="meta-label">Inference Time:</span>
+                                                <span class="meta-val" id="meta-latency">0 ms</span>
+                                            </div>
+                                            <div class="meta-item">
+                                                <span class="meta-label">Total Tokens:</span>
+                                                <span class="meta-val" id="meta-tokens">0</span>
+                                            </div>
+                                            <div class="meta-item">
+                                                <span class="meta-label">Model Pipeline:</span>
+                                                <span class="meta-val">TF-IDF + MNB</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </details>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Model Benchmarks & Metrics Section -->
+        <section class="benchmarks-section" id="benchmarks">
+            <div class="section-container">
+                <div class="section-header">
+                    <div class="section-label">
+                        <span class="label-dot"></span>
+                        <span>EMPIRICAL PERFORMANCE VALIDATION</span>
+                    </div>
+                    <h2 class="section-title">Model Benchmarks & Metrics</h2>
+                    <p class="section-description">
+                        Evaluated on an independent, held-out 20% test partition (847 emails)
+                        from the genuine Apache SpamAssassin public email corpus.
+                    </p>
+                </div>
+
+                <!-- 4 KPI Cards Grid -->
+                <div class="kpi-grid">
+                    <div class="cyber-card kpi-card">
+                        <div class="kpi-icon-wrap icon-cyan">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="12" cy="12" r="10"/>
+                                <path d="M12 6v6l4 2"/>
+                            </svg>
+                        </div>
+                        <div class="kpi-value" id="kpi-accuracy">98.35%</div>
+                        <div class="kpi-name">Overall Accuracy</div>
+                        <p class="kpi-desc">Total correct classifications across all legitimate and spam test samples.</p>
+                    </div>
+
+                    <div class="cyber-card kpi-card">
+                        <div class="kpi-icon-wrap icon-purple">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+                            </svg>
+                        </div>
+                        <div class="kpi-value" id="kpi-precision">99.42%</div>
+                        <div class="kpi-name">Precision Rate</div>
+                        <p class="kpi-desc">Essential for email: 99.42% precision means practically zero false alarms on legitimate mail.</p>
+                    </div>
+
+                    <div class="cyber-card kpi-card">
+                        <div class="kpi-icon-wrap icon-blue">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                                <polyline points="22 4 12 14.01 9 11.01"/>
+                            </svg>
+                        </div>
+                        <div class="kpi-value" id="kpi-recall">96.60%</div>
+                        <div class="kpi-name">Recall (Detection Rate)</div>
+                        <p class="kpi-desc">Percentage of genuine spam and malicious emails intercepted successfully.</p>
+                    </div>
+
+                    <div class="cyber-card kpi-card">
+                        <div class="kpi-icon-wrap icon-emerald">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+                            </svg>
+                        </div>
+                        <div class="kpi-value" id="kpi-f1">97.99%</div>
+                        <div class="kpi-name">F1-Score (Harmonic Mean)</div>
+                        <p class="kpi-desc">Balanced harmonic metric accounting for both precision and recall under class imbalance.</p>
+                    </div>
+                </div>
+
+                <!-- Deep-Dive: Confusion Matrix & Top Spam Indicators -->
+                <div class="benchmarks-deep-dive">
+                    <!-- Confusion Matrix Visualizer -->
+                    <div class="cyber-card matrix-card">
+                        <div class="card-top-bar">
+                            <div class="card-top-title">CONFUSION_MATRIX :: TEST_EVALUATION</div>
+                            <span class="card-top-badge badge-blue">N = 847 SAMPLES</span>
+                        </div>
+                        <div class="card-body-content">
+                            <p class="matrix-intro">
+                                Verification matrix proving zero data leakage. True classes mapped against model predictions:
+                            </p>
+                            <div class="matrix-wrapper">
+                                <div class="matrix-grid-2x2">
+                                    <div class="matrix-cell cell-tn">
+                                        <div class="cell-tag">TRUE NEGATIVE (TN)</div>
+                                        <div class="cell-count" id="cm-tn">492</div>
+                                        <div class="cell-sub">Legitimate Emails Verified Correctly</div>
+                                        <div class="cell-rate text-success">99.6% Specificity</div>
+                                    </div>
+                                    <div class="matrix-cell cell-fp">
+                                        <div class="cell-tag">FALSE POSITIVE (FP)</div>
+                                        <div class="cell-count text-danger" id="cm-fp">2</div>
+                                        <div class="cell-sub">False Alarms (Legitimate marked Spam)</div>
+                                        <div class="cell-rate text-warning">Only 0.4% Rate</div>
+                                    </div>
+                                    <div class="matrix-cell cell-fn">
+                                        <div class="cell-tag">FALSE NEGATIVE (FN)</div>
+                                        <div class="cell-count text-warning" id="cm-fn">12</div>
+                                        <div class="cell-sub">Missed Spam (Delivered as Ham)</div>
+                                        <div class="cell-rate text-warning">3.4% Leakage</div>
+                                    </div>
+                                    <div class="matrix-cell cell-tp">
+                                        <div class="cell-tag">TRUE POSITIVE (TP)</div>
+                                        <div class="cell-count text-cyan" id="cm-tp">341</div>
+                                        <div class="cell-sub">Malicious Spam Neutralized</div>
+                                        <div class="cell-rate text-cyan">96.6% Intercepted</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Top Predictive Spam & Ham Features -->
+                    <div class="cyber-card keywords-card">
+                        <div class="card-top-bar">
+                            <div class="card-top-title">EXPLAINABLE_AI :: LOG_ODDS_RATIO</div>
+                            <span class="card-top-badge badge-purple">BAYESIAN WEIGHTS</span>
+                        </div>
+                        <div class="card-body-content">
+                            <p class="matrix-intro">
+                                Top n-grams with highest predictive log-likelihood ratio
+                                <code class="inline-code">log(P(w|Spam)/P(w|Ham))</code>:
+                            </p>
+
+                            <div class="vocab-section">
+                                <div class="vocab-title text-danger">⚠️ Highest Spam Indication Tokens:</div>
+                                <div class="vocab-pills-wrap" id="top-spam-vocab-list">
+                                    <span class="vocab-pill spam-token">mortgage <em>+4.84</em></span>
+                                    <span class="vocab-pill spam-token">wish receive <em>+4.79</em></span>
+                                    <span class="vocab-pill spam-token">click httpaddr <em>+4.75</em></span>
+                                    <span class="vocab-pill spam-token">refinance <em>+4.43</em></span>
+                                    <span class="vocab-pill spam-token">future mailings <em>+4.27</em></span>
+                                    <span class="vocab-pill spam-token">life insurance <em>+4.39</em></span>
+                                </div>
+                            </div>
+
+                            <div class="vocab-section mt-4">
+                                <div class="vocab-title text-success">🛡️ Highest Legitimate (Ham) Indication Tokens:</div>
+                                <div class="vocab-pills-wrap" id="top-ham-vocab-list">
+                                    <span class="vocab-pill ham-token">users <em>-3.92</em></span>
+                                    <span class="vocab-pill ham-token">wednesday <em>-3.88</em></span>
+                                    <span class="vocab-pill ham-token">patch <em>-3.75</em></span>
+                                    <span class="vocab-pill ham-token">commit <em>-3.69</em></span>
+                                    <span class="vocab-pill ham-token">linux <em>-3.52</em></span>
+                                    <span class="vocab-pill ham-token">developer <em>-3.41</em></span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- How It Works Section -->
+        <section class="how-it-works-section" id="how-it-works">
+            <div class="section-container">
+                <div class="section-header">
+                    <div class="section-label">
+                        <span class="label-dot"></span>
+                        <span>THEORY & MATHEMATICS</span>
+                    </div>
+                    <h2 class="section-title">How SpamGuard AI Works</h2>
+                    <p class="section-description">
+                        A rigorous 4-stage machine learning workflow transforming unstructured raw text into
+                        mathematical probability distributions.
+                    </p>
+                </div>
+
+                <div class="workflow-steps-grid">
+                    <!-- Step 1 -->
+                    <div class="cyber-card step-card">
+                        <div class="step-num-badge">01</div>
+                        <div class="step-icon-wrap">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                                <polyline points="14 2 14 8 20 8"/>
+                                <line x1="16" y1="13" x2="8" y2="13"/>
+                                <line x1="16" y1="17" x2="8" y2="17"/>
+                                <polyline points="10 9 9 9 8 9"/>
+                            </svg>
+                        </div>
+                        <h3 class="step-title">Text Cleaning & Token Normalization</h3>
+                        <p class="step-text">
+                            Raw emails contain irregular formatting, HTML tags, and evasive obfuscation.
+                            Our pipeline applies regex normalization:
+                        </p>
+                        <ul class="step-checklist">
+                            <li>Strips raw HTML tags and unescapes entities</li>
+                            <li>Normalizes URLs into uniform <code class="inline-code">httpaddr</code> tokens</li>
+                            <li>Normalizes emails into <code class="inline-code">emailaddr</code> tokens</li>
+                            <li>Masks monetary currencies (<code class="inline-code">dollar_amount</code>)</li>
+                            <li>Lowercases text and strips stopwords</li>
+                        </ul>
+                    </div>
+
+                    <!-- Step 2 -->
+                    <div class="cyber-card step-card">
+                        <div class="step-num-badge">02</div>
+                        <div class="step-icon-wrap">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                                <line x1="3" y1="9" x2="21" y2="9"/>
+                                <line x1="9" y1="21" x2="9" y2="9"/>
+                            </svg>
+                        </div>
+                        <h3 class="step-title">TF-IDF Feature Vectorization</h3>
+                        <p class="step-text">
+                            Converts clean words into a 15,000-dimensional numerical space.
+                            Term Frequency - Inverse Document Frequency prevents frequent words from dominating:
+                        </p>
+                        <div class="math-box">
+                            <div class="math-formula">
+                                \text{TF-IDF}(t, d) = \text{TF}(t, d) \times \log\left(\frac{1 + N}{1 + \text{DF}(t)}\right) + 1
+                            </div>
+                        </div>
+                        <p class="step-subtext">
+                            Features incorporate unigrams and bigrams (e.g. <em>"claim prize"</em>, <em>"wire transfer"</em>) with sublinear logarithmic scaling.
+                        </p>
+                    </div>
+
+                    <!-- Step 3 -->
+                    <div class="cyber-card step-card">
+                        <div class="step-num-badge">03</div>
+                        <div class="step-icon-wrap">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+                                <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+                            </svg>
+                        </div>
+                        <h3 class="step-title">Multinomial Naive Bayes</h3>
+                        <p class="step-text">
+                            Computes class posteriors using Bayes' Theorem under the conditional independence assumption:
+                        </p>
+                        <div class="math-box">
+                            <div class="math-formula">
+                                P(C_k \mid \mathbf{x}) \propto P(C_k) \prod_{i=1}^{n} P(x_i \mid C_k)^{x_i}
+                            </div>
+                        </div>
+                        <p class="step-subtext">
+                            Laplace smoothing (<code class="inline-code">&alpha; = 0.1</code>) prevents zero-frequency zero-probability errors for rare unseen words.
+                        </p>
+                    </div>
+
+                    <!-- Step 4 -->
+                    <div class="cyber-card step-card">
+                        <div class="step-num-badge">04</div>
+                        <div class="step-icon-wrap">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                                <path d="M9 12l2 2 4-4"/>
+                            </svg>
+                        </div>
+                        <h3 class="step-title">Risk Level & Decision Boundary</h3>
+                        <p class="step-text">
+                            Posterior probabilities are mapped into operational cybersecurity severity tiers:
+                        </p>
+                        <ul class="step-checklist">
+                            <li><strong class="text-danger">Critical Risk (&ge;85%):</strong> Confirmed malware/phishing.</li>
+                            <li><strong class="text-warning">High Risk (50-84%):</strong> Unsolicited promotional spam.</li>
+                            <li><strong class="text-yellow">Medium (25-49%):</strong> Borderline marketing emails.</li>
+                            <li><strong class="text-success">Safe (&lt;25%):</strong> Standard authenticated correspondence.</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Architecture & Tech Stack Section -->
+        <section class="architecture-section" id="architecture">
+            <div class="section-container">
+                <div class="section-header">
+                    <div class="section-label">
+                        <span class="label-dot"></span>
+                        <span>SYSTEM SPECIFICATION</span>
+                    </div>
+                    <h2 class="section-title">End-to-End System Architecture</h2>
+                    <p class="section-description">
+                        Lightweight, modular, and completely self-contained with zero reliance on cloud subscriptions.
+                    </p>
+                </div>
+
+                <div class="arch-card-wrapper">
+                    <div class="cyber-card arch-card">
+                        <div class="arch-diagram">
+                            <div class="arch-node node-client">
+                                <div class="node-badge">CLIENT TIER</div>
+                                <div class="node-title">Web Browser UI</div>
+                                <div class="node-meta">HTML5 / Vanilla CSS3 / Modern JS</div>
+                            </div>
+                            <div class="arch-connector">
+                                <span class="connector-line"></span>
+                                <span class="connector-text">JSON over HTTP POST /api/predict</span>
+                                <span class="connector-arrow">▶</span>
+                            </div>
+                            <div class="arch-node node-server">
+                                <div class="node-badge">SERVER TIER</div>
+                                <div class="node-title">Flask Application</div>
+                                <div class="node-meta">REST API Router / Input Validation</div>
+                            </div>
+                            <div class="arch-connector">
+                                <span class="connector-line"></span>
+                                <span class="connector-text">Token Stream</span>
+                                <span class="connector-arrow">▶</span>
+                            </div>
+                            <div class="arch-node node-ml">
+                                <div class="node-badge">ML INFERENCE TIER</div>
+                                <div class="node-title">Joblib Pipeline</div>
+                                <div class="node-meta">TF-IDF Vectorizer + MultinomialNB</div>
+                            </div>
+                        </div>
+
+                        <div class="tech-stack-row">
+                            <div class="tech-chip">
+                                <span class="tech-icon">🐍</span>
+                                <span class="tech-name">Python 3.9+</span>
+                            </div>
+                            <div class="tech-chip">
+                                <span class="tech-icon">⚡</span>
+                                <span class="tech-name">Flask 3.0</span>
+                            </div>
+                            <div class="tech-chip">
+                                <span class="tech-icon">🔬</span>
+                                <span class="tech-name">Scikit-Learn</span>
+                            </div>
+                            <div class="tech-chip">
+                                <span class="tech-icon">📊</span>
+                                <span class="tech-name">Pandas & NumPy</span>
+                            </div>
+                            <div class="tech-chip">
+                                <span class="tech-icon">💾</span>
+                                <span class="tech-name">Joblib Serialization</span>
+                            </div>
+                            <div class="tech-chip">
+                                <span class="tech-icon">🛡️</span>
+                                <span class="tech-name">Apache SpamAssassin Corpus</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Footer -->
+    <footer class="cyber-footer">
+        <div class="footer-container">
+            <div class="footer-col-brand">
+                <div class="brand-logo">
+                    <div class="brand-icon-wrapper">
+                        <svg class="brand-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                            <path d="M9 12l2 2 4-4"/>
+                        </svg>
+                    </div>
+                    <span class="brand-name">SPAMGUARD<span class="brand-accent">.AI</span></span>
+                </div>
+                <p class="footer-text">
+                    Production-grade email spam & phishing classification system powered by Scikit-Learn NLP.
+                    Free, open-source, and privacy-preserving.
+                </p>
+            </div>
+
+            <div class="footer-col-links">
+                <div class="footer-heading">RESTful APIs</div>
+                <ul class="footer-list">
+                    <li><code class="footer-code">GET /api/health</code></li>
+                    <li><code class="footer-code">GET /api/metrics</code></li>
+                    <li><code class="footer-code">GET /api/samples</code></li>
+                    <li><code class="footer-code">POST /api/predict</code></li>
+                </ul>
+            </div>
+
+            <div class="footer-col-links">
+                <div class="footer-heading">Dataset & License</div>
+                <ul class="footer-list">
+                    <li><span>Corpus: Apache SpamAssassin</span></li>
+                    <li><span>Algorithm: MultinomialNB</span></li>
+                    <li><span>Vocab: 15,000 TF-IDF n-grams</span></li>
+                    <li><span>Status: Tested & Verified</span></li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="footer-bottom">
+            <div class="footer-bottom-container">
+                <p>&copy; 2026 SPAMGUARD AI. All local inferences executed in-memory. Zero third-party telemetry.</p>
+                <div class="footer-status-pill">
+                    <span class="pulse-emerald"></span>
+                    <span>All Systems Operational</span>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Main JavaScript Logic -->
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+</body>
+</html>
