@@ -409,8 +409,9 @@ load_model_and_metrics()
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5001))
+    host = os.environ.get("HOST", "0.0.0.0")
     print(f"\n==================================================================")
     print(f" SPAMGUARD AI SERVER ONLINE")
-    print(f" Local URL: http://127.0.0.1:{port}")
+    print(f" Local URL: http://{host}:{port}")
     print(f"==================================================================\n")
-    app.run(host="127.0.0.1", port=port, debug=False)
+    app.run(host=host, port=port, debug=False)
