@@ -1,15 +1,4 @@
-"""
-=============================================================================
-SPAMGUARD AI - MODEL TRAINING PIPELINE
-=============================================================================
-Author: SPAMGUARD AI ML Engineering Team
-Objective: Download genuine public email corpus (Apache SpamAssassin),
-           clean and preprocess raw RFC 822 email texts, extract features using
-           TF-IDF Vectorization, train a Multinomial Naive Bayes classifier,
-           evaluate with full statistical metrics (Accuracy, Precision, Recall,
-           F1-Score, Confusion Matrix), and serialize the trained pipeline with Joblib.
-=============================================================================
-"""
+
 
 import os
 import re
@@ -27,6 +16,9 @@ import pandas as pd
 from sklearn.model_selection import train_test_split
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.naive_bayes import MultinomialNB
+from sklearn.linear_model import LogisticRegression
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.svm import LinearSVC
 from sklearn.pipeline import Pipeline
 from sklearn.metrics import (
     accuracy_score,
@@ -38,33 +30,33 @@ from sklearn.metrics import (
 )
 import joblib
 
-# Paths configuration
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DATA_DIR = os.path.join(BASE_DIR, "data")
 MODEL_DIR = os.path.join(BASE_DIR, "model")
 CSV_PATH = os.path.join(DATA_DIR, "spam_dataset.csv")
 PIPELINE_PATH = os.path.join(MODEL_DIR, "spam_classifier_pipeline.joblib")
+BASELINE_PIPELINE_PATH = os.path.join(MODEL_DIR, "baseline_nb_pipeline.joblib")
 METRICS_PATH = os.path.join(MODEL_DIR, "metrics.json")
 
-# Genuine public datasets: Official Apache SpamAssassin public corpus archives
+
 DATASET_URLS = {
     "ham_easy": {
         "url": "https://spamassassin.apache.org/old/publiccorpus/20030228_easy_ham.tar.bz2",
         "archive_name": "20030228_easy_ham.tar.bz2",
         "folder_name": "easy_ham",
-        "label": 0  # Ham (Legitimate)
+        "label": 0  
     },
     "spam_1": {
         "url": "https://spamassassin.apache.org/old/publiccorpus/20030228_spam.tar.bz2",
         "archive_name": "20030228_spam.tar.bz2",
         "folder_name": "spam",
-        "label": 1  # Spam
+        "label": 1 
     },
     "spam_2": {
         "url": "https://spamassassin.apache.org/old/publiccorpus/20050311_spam_2.tar.bz2",
         "archive_name": "20050311_spam_2.tar.bz2",
         "folder_name": "spam_2",
-        "label": 1  # Spam
+        "label": 1  
     }
 }
 
@@ -89,16 +81,16 @@ def download_and_extract_corpus() -> None:
         archive_path = os.path.join(DATA_DIR, info["archive_name"])
         target_dir = os.path.join(DATA_DIR, info["folder_name"])
 
-        # Check if already extracted
+        
         if os.path.exists(target_dir) and len(os.listdir(target_dir)) > 10:
             print(f"[+] Dataset '{key}' already extracted in {target_dir}")
             continue
 
-        # Download if archive doesn't exist
+        
         if not os.path.exists(archive_path):
             print(f"[*] Fetching genuine dataset '{key}' from {info['url']}...")
             try:
-                headers = {'User-Agent': 'SpamGuard-AI-Downloader/1.0'}
+                headers = {'User-Agent': 'Spam-Email-Detection-Downloader/1.0'}
                 req = urllib.request.Request(info["url"], headers=headers)
                 with urllib.request.urlopen(req) as response, open(archive_path, 'wb') as out_file:
                     total_size = int(response.info().get('Content-Length', -1))
@@ -116,7 +108,7 @@ def download_and_extract_corpus() -> None:
                 print(f"\n[-] Error downloading {key} from {info['url']}: {e}")
                 raise
 
-        # Extract archive
+        
         print(f"[*] Extracting {info['archive_name']} into {DATA_DIR}...")
         try:
             with tarfile.open(archive_path, "r:bz2") as tar:
@@ -184,7 +176,7 @@ def extract_text_from_email_file(file_path: str) -> str:
     body = "\n".join(body_parts)
     full_email = f"Subject: {subject}\n\n{body}".strip()
 
-    # Fallback to decode if parsing produced nothing
+    
     if not full_email or len(full_email) < 10:
         full_email = raw_bytes.decode("latin-1", errors="ignore")
 
@@ -294,15 +286,25 @@ def build_or_load_dataset() -> pd.DataFrame:
 
 def train_and_evaluate_model() -> Dict[str, Any]:
     """
-    Trains the TF-IDF + Multinomial Naive Bayes pipeline without data leakage.
-    Evaluates accuracy, precision, recall, F1-score, and confusion matrix.
-    Extracts top predictive spam/ham indicators.
-    Saves the pipeline using Joblib and metrics to JSON.
+    Multi-Model Training & Benchmarking Pipeline:
+    1. Loads genuine Apache SpamAssassin dataset.
+    2. Performs an 80/20 Stratified train/test split.
+    3. Fits TF-IDF vectorizer on training data only to guarantee ZERO data leakage.
+    4. Trains 4 candidate classifiers:
+       - Multinomial Naive Bayes (Baseline)
+       - Logistic Regression (L2 regularized)
+       - Random Forest (100 estimators, max_depth=40)
+       - Linear SVM (LinearSVC with dual='auto')
+    5. Measures Accuracy, Precision, Recall, F1-Score, and Confusion Matrix.
+    6. Dynamically selects the best-performing model based on test F1-score.
+    7. Retains Multinomial Naive Bayes as the benchmark baseline.
+    8. Serializes best pipeline and baseline pipeline to disk.
+    9. Saves comprehensive evaluation and explainability metrics to JSON.
     """
     start_time = time.time()
-    print("=" * 70)
-    print("SPAMGUARD AI - TRAINING PIPELINE INITIALIZATION")
-    print("=" * 70)
+    print("=" * 75)
+    print("SPAM EMAIL DETECTION - MULTI-MODEL ML BENCHMARK & SELECTION PIPELINE")
+    print("=" * 75)
 
     # 1. Load Dataset
     df = build_or_load_dataset()
@@ -323,103 +325,90 @@ def train_and_evaluate_model() -> Dict[str, Any]:
         stratify=y
     )
 
+    print(f"    - Total Corpus: {total_samples} emails (Ham: {ham_count}, Spam: {spam_count})")
     print(f"    - Training Set: {len(X_train)} samples")
     print(f"    - Testing Set:  {len(X_test)} samples")
 
-    # 3. Construct Scikit-Learn Pipeline
-    # TfidfVectorizer:
-    # - sublinear_tf=True applies logarithmic term frequency scaling (1 + log(tf))
-    # - ngram_range=(1, 2) extracts both unigrams and critical bigrams ("claim prize", "wire transfer")
-    # - stop_words='english' filters out common uninformative words
-    # - min_df=2 ignores rare single-occurrence typos
-    # MultinomialNB:
-    # - alpha=0.1 Laplace smoothing preserves sensitivity for distinct spam signals
-    print("\n[*] Initializing ML Pipeline (TF-IDF Vectorizer + Multinomial Naive Bayes)...")
-    pipeline = Pipeline([
-        ('tfidf', TfidfVectorizer(
-            ngram_range=(1, 2),
-            sublinear_tf=True,
-            min_df=2,
-            max_df=0.95,
-            max_features=15000,
-            stop_words='english'
-        )),
-        ('nb', MultinomialNB(alpha=0.1))
-    ])
+    # 3. TF-IDF Feature Extraction (Fit ONLY on Training Data)
+    print("\n[*] Initializing TF-IDF Vectorizer (15,000 max features, unigrams + bigrams)...")
+    tfidf = TfidfVectorizer(
+        ngram_range=(1, 2),
+        sublinear_tf=True,
+        min_df=2,
+        max_df=0.95,
+        max_features=15000,
+        stop_words='english'
+    )
 
-    # 4. Train Model
-    print("[*] Training model on training data...")
-    train_start = time.time()
-    pipeline.fit(X_train, y_train)
-    train_duration = round(time.time() - train_start, 3)
-    print(f"[+] Model training completed in {train_duration}s.")
+    train_vec_start = time.time()
+    X_train_vec = tfidf.fit_transform(X_train)
+    X_test_vec = tfidf.transform(X_test)
+    vec_time = round(time.time() - train_vec_start, 3)
+    vocab_size = len(tfidf.vocabulary_)
+    print(f"[+] TF-IDF Vectorization complete in {vec_time}s. Vocabulary size: {vocab_size} n-grams.")
 
-    # 5. Evaluate on Held-out Test Set
-    print("\n[*] Evaluating on independent test set...")
-    y_pred = pipeline.predict(X_test)
-    y_prob = pipeline.predict_proba(X_test)[:, 1]
+    # 4. Define Candidate Model Suite
+    candidate_models = {
+        "Multinomial Naive Bayes": {
+            "instance": MultinomialNB(alpha=0.1),
+            "description": "Probabilistic Bayesian classifier with Laplace smoothing (alpha=0.1)",
+            "family": "Naive Bayes",
+            "is_baseline": True
+        },
+        "Logistic Regression": {
+            "instance": LogisticRegression(C=1.0, solver="liblinear", random_state=42, max_iter=1000),
+            "description": "L2-regularized linear classifier optimizing log-loss with liblinear solver",
+            "family": "Generalized Linear Model",
+            "is_baseline": False
+        },
+        "Random Forest": {
+            "instance": RandomForestClassifier(n_estimators=100, max_depth=40, random_state=42, n_jobs=-1),
+            "description": "Ensemble of 100 decorrelated decision trees with max depth of 40",
+            "family": "Ensemble Trees",
+            "is_baseline": False
+        },
+        "Linear SVM": {
+            "instance": LinearSVC(C=1.0, random_state=42, dual='auto', max_iter=2000),
+            "description": "Maximum-margin hyperplane classifier using Linear Support Vector Classification",
+            "family": "Support Vector Machine",
+            "is_baseline": False
+        }
+    }
 
-    acc = float(accuracy_score(y_test, y_pred))
-    prec = float(precision_score(y_test, y_pred))
-    rec = float(recall_score(y_test, y_pred))
-    f1 = float(f1_score(y_test, y_pred))
-    cm = confusion_matrix(y_test, y_pred).tolist()
-    # cm layout: [[TN, FP], [FN, TP]]
-    tn, fp, fn, tp = int(cm[0][0]), int(cm[0][1]), int(cm[1][0]), int(cm[1][1])
+    # 5. Train and Evaluate Each Candidate
+    print("\n" + "=" * 75)
+    print("TRAINING & EVALUATING CANDIDATE MODELS (HELD-OUT TEST PARTITION)")
+    print("=" * 75)
 
-    report = classification_report(y_test, y_pred, target_names=["Ham", "Spam"], output_dict=True)
+    comparison_results = []
+    trained_estimators = {}
+    reports = {}
 
-    print("\n" + "=" * 50)
-    print("EVALUATION RESULTS (HELD-OUT TEST SET)")
-    print("=" * 50)
-    print(f" Accuracy:  {acc * 100:.2f}%")
-    print(f" Precision: {prec * 100:.2f}%")
-    print(f" Recall:    {rec * 100:.2f}%")
-    print(f" F1-Score:  {f1 * 100:.2f}%")
-    print("-" * 50)
-    print("Confusion Matrix:")
-    print(f"  True Negatives (Legitimate Correct): {tn}")
-    print(f"  False Positives (False Alarms):       {fp}")
-    print(f"  False Negatives (Missed Spam):        {fn}")
-    print(f"  True Positives (Spam Blocked):        {tp}")
-    print("=" * 50)
+    for name, config in candidate_models.items():
+        estimator = config["instance"]
+        print(f"\n[*] Training {name}...")
+        t0 = time.time()
+        estimator.fit(X_train_vec, y_train)
+        fit_duration = round(time.time() - t0, 4)
+        trained_estimators[name] = estimator
 
-    # 6. Extract Top Informative Features (Explainable AI)
-    vectorizer = pipeline.named_steps['tfidf']
-    nb = pipeline.named_steps['nb']
-    feature_names = np.array(vectorizer.get_feature_names_out())
+        # Predict on held-out test partition
+        y_pred = estimator.predict(X_test_vec)
 
-    # Log-odds ratio between Spam (class 1) and Ham (class 0)
-    # log(P(w|Spam) / P(w|Ham)) = log_prob[1] - log_prob[0]
-    log_odds = nb.feature_log_prob_[1] - nb.feature_log_prob_[0]
-    top_spam_indices = np.argsort(log_odds)[-30:][::-1]
-    top_ham_indices = np.argsort(log_odds)[:30]
+        acc = float(accuracy_score(y_test, y_pred))
+        prec = float(precision_score(y_test, y_pred))
+        rec = float(recall_score(y_test, y_pred))
+        f1 = float(f1_score(y_test, y_pred))
+        cm = confusion_matrix(y_test, y_pred).tolist()
+        tn, fp, fn, tp = int(cm[0][0]), int(cm[0][1]), int(cm[1][0]), int(cm[1][1])
+        report = classification_report(y_test, y_pred, target_names=["Ham", "Spam"], output_dict=True)
+        reports[name] = report
 
-    top_spam_keywords = [
-        {"word": str(feature_names[i]), "log_ratio": round(float(log_odds[i]), 3)}
-        for i in top_spam_indices
-    ]
-    top_ham_keywords = [
-        {"word": str(feature_names[i]), "log_ratio": round(float(log_odds[i]), 3)}
-        for i in top_ham_indices
-    ]
-
-    # 7. Save Pipeline to disk
-    print(f"\n[*] Serializing pipeline to {PIPELINE_PATH}...")
-    joblib.dump(pipeline, PIPELINE_PATH)
-    print("[+] Pipeline serialized successfully.")
-
-    # 8. Save Metrics & Metadata to JSON
-    metrics_data = {
-        "model_name": "SpamGuard Multinomial Naive Bayes + TF-IDF",
-        "dataset_name": "Apache SpamAssassin Public Email Corpus",
-        "total_dataset_samples": total_samples,
-        "ham_samples": ham_count,
-        "spam_samples": spam_count,
-        "train_samples": len(X_train),
-        "test_samples": len(X_test),
-        "vocabulary_size": len(vectorizer.vocabulary_),
-        "metrics": {
+        model_stat = {
+            "model_name": name,
+            "family": config["family"],
+            "description": config["description"],
+            "is_baseline": config["is_baseline"],
             "accuracy": round(acc, 4),
             "precision": round(prec, 4),
             "recall": round(rec, 4),
@@ -427,28 +416,165 @@ def train_and_evaluate_model() -> Dict[str, Any]:
             "accuracy_percent": round(acc * 100, 2),
             "precision_percent": round(prec * 100, 2),
             "recall_percent": round(rec * 100, 2),
-            "f1_percent": round(f1 * 100, 2)
+            "f1_percent": round(f1 * 100, 2),
+            "fit_time_seconds": fit_duration,
+            "confusion_matrix": {
+                "matrix": cm,
+                "true_negatives": tn,
+                "false_positives": fp,
+                "false_negatives": fn,
+                "true_positives": tp,
+                "specificity": round(tn / (tn + fp) if (tn + fp) > 0 else 0, 4),
+                "sensitivity": round(tp / (tp + fn) if (tp + fn) > 0 else 0, 4)
+            }
+        }
+        comparison_results.append(model_stat)
+
+        print(f"    - Accuracy:  {acc * 100:.2f}%")
+        print(f"    - Precision: {prec * 100:.2f}%")
+        print(f"    - Recall:    {rec * 100:.2f}%")
+        print(f"    - F1-Score:  {f1 * 100:.2f}%")
+        print(f"    - Latency:   {fit_duration}s | TN={tn}, FP={fp}, FN={fn}, TP={tp}")
+
+    # 6. Dynamic Model Selection based on Measured Test Results
+    # Selection criterion: Highest test F1-score (harmonic balance of precision and recall)
+    # Secondary criterion: Accuracy
+    comparison_results.sort(key=lambda m: (m["f1_score"], m["accuracy"]), reverse=True)
+    best_model_name = comparison_results[0]["model_name"]
+    baseline_model_name = "Multinomial Naive Bayes"
+
+    for m in comparison_results:
+        m["is_best"] = (m["model_name"] == best_model_name)
+
+    print("\n" + "=" * 75)
+    print(f"MODEL SELECTION VERDICT: Best Performer is '{best_model_name}'")
+    print(f"Baseline Retained:      '{baseline_model_name}'")
+    print("=" * 75)
+
+    best_estimator = trained_estimators[best_model_name]
+    baseline_estimator = trained_estimators[baseline_model_name]
+
+    # 7. Construct Full Inference Pipelines
+    # Scikit-Learn Pipeline combining TF-IDF and Classifier
+    best_pipeline = Pipeline([
+        ('tfidf', tfidf),
+        ('classifier', best_estimator)
+    ])
+
+    baseline_pipeline = Pipeline([
+        ('tfidf', tfidf),
+        ('nb', baseline_estimator)
+    ])
+
+    # Serialize Best Pipeline to Disk
+    print(f"\n[*] Serializing best model pipeline to {PIPELINE_PATH}...")
+    joblib.dump(best_pipeline, PIPELINE_PATH)
+    print(f"[+] Serialized best pipeline ({best_model_name}) successfully.")
+
+    # Serialize Baseline Pipeline to Disk
+    print(f"[*] Serializing baseline pipeline to {BASELINE_PIPELINE_PATH}...")
+    joblib.dump(baseline_pipeline, BASELINE_PIPELINE_PATH)
+    print(f"[+] Serialized baseline pipeline ({baseline_model_name}) successfully.")
+
+    # 8. Extract Explainable AI Feature Weights
+    feature_names = np.array(tfidf.get_feature_names_out())
+    top_spam_keywords = []
+    top_ham_keywords = []
+
+    if hasattr(best_estimator, "coef_"):
+        # Linear models (Linear SVM, Logistic Regression)
+        weights = best_estimator.coef_[0]
+        top_spam_indices = np.argsort(weights)[-30:][::-1]
+        top_ham_indices = np.argsort(weights)[:30]
+        top_spam_keywords = [
+            {"word": str(feature_names[i]), "weight": round(float(weights[i]), 3)}
+            for i in top_spam_indices
+        ]
+        top_ham_keywords = [
+            {"word": str(feature_names[i]), "weight": round(float(weights[i]), 3)}
+            for i in top_ham_indices
+        ]
+    elif hasattr(best_estimator, "feature_log_prob_"):
+        # Naive Bayes log-odds ratio
+        log_odds = best_estimator.feature_log_prob_[1] - best_estimator.feature_log_prob_[0]
+        top_spam_indices = np.argsort(log_odds)[-30:][::-1]
+        top_ham_indices = np.argsort(log_odds)[:30]
+        top_spam_keywords = [
+            {"word": str(feature_names[i]), "log_ratio": round(float(log_odds[i]), 3)}
+            for i in top_spam_indices
+        ]
+        top_ham_keywords = [
+            {"word": str(feature_names[i]), "log_ratio": round(float(log_odds[i]), 3)}
+            for i in top_ham_indices
+        ]
+
+    # Baseline Naive Bayes log-odds for reference
+    nb_log_odds = baseline_estimator.feature_log_prob_[1] - baseline_estimator.feature_log_prob_[0]
+    nb_top_spam_indices = np.argsort(nb_log_odds)[-30:][::-1]
+    nb_top_ham_indices = np.argsort(nb_log_odds)[:30]
+    baseline_spam_keywords = [
+        {"word": str(feature_names[i]), "log_ratio": round(float(nb_log_odds[i]), 3)}
+        for i in nb_top_spam_indices
+    ]
+    baseline_ham_keywords = [
+        {"word": str(feature_names[i]), "log_ratio": round(float(nb_log_odds[i]), 3)}
+        for i in nb_top_ham_indices
+    ]
+
+    # Find the stats record for the best model and baseline
+    best_stats = next(item for item in comparison_results if item["model_name"] == best_model_name)
+    baseline_stats = next(item for item in comparison_results if item["model_name"] == baseline_model_name)
+
+    # 9. Structure Final Evaluation Metrics JSON
+    metrics_data = {
+        "model_name": f"Spam Email Detection {best_model_name} + TF-IDF",
+        "best_model_name": best_model_name,
+        "baseline_model_name": baseline_model_name,
+        "selection_criterion": "Dynamically selected by highest test F1-score and generalization accuracy",
+        "dataset_name": "Apache SpamAssassin Public Email Corpus",
+        "total_dataset_samples": total_samples,
+        "ham_samples": ham_count,
+        "spam_samples": spam_count,
+        "train_samples": len(X_train),
+        "test_samples": len(X_test),
+        "split_ratio": "80% Training, 20% Testing (Stratified)",
+        "vocabulary_size": vocab_size,
+        "metrics": {
+            "accuracy": best_stats["accuracy"],
+            "precision": best_stats["precision"],
+            "recall": best_stats["recall"],
+            "f1_score": best_stats["f1_score"],
+            "accuracy_percent": best_stats["accuracy_percent"],
+            "precision_percent": best_stats["precision_percent"],
+            "recall_percent": best_stats["recall_percent"],
+            "f1_percent": best_stats["f1_percent"]
         },
-        "confusion_matrix": {
-            "matrix": cm,
-            "true_negatives": tn,
-            "false_positives": fp,
-            "false_negatives": fn,
-            "true_positives": tp
+        "confusion_matrix": best_stats["confusion_matrix"],
+        "classification_report": reports[best_model_name],
+        "model_comparison": comparison_results,
+        "baseline_metrics": {
+            "model_name": baseline_model_name,
+            "accuracy_percent": baseline_stats["accuracy_percent"],
+            "precision_percent": baseline_stats["precision_percent"],
+            "recall_percent": baseline_stats["recall_percent"],
+            "f1_percent": baseline_stats["f1_percent"],
+            "confusion_matrix": baseline_stats["confusion_matrix"]
         },
-        "classification_report": report,
-        "top_spam_keywords": top_spam_keywords,
-        "top_ham_keywords": top_ham_keywords,
-        "training_time_seconds": train_duration,
+        "top_spam_keywords": top_spam_keywords if top_spam_keywords else baseline_spam_keywords,
+        "top_ham_keywords": top_ham_keywords if top_ham_keywords else baseline_ham_keywords,
+        "baseline_top_spam_keywords": baseline_spam_keywords,
+        "baseline_top_ham_keywords": baseline_ham_keywords,
+        "training_time_seconds": best_stats["fit_time_seconds"],
+        "total_pipeline_time_seconds": round(time.time() - start_time, 2),
         "trained_at": time.strftime("%Y-%m-%d %H:%M:%S UTC", time.gmtime())
     }
 
     with open(METRICS_PATH, "w", encoding="utf-8") as f:
         json.dump(metrics_data, f, indent=2)
-    print(f"[+] Metrics & explainability metadata saved to {METRICS_PATH}")
+    print(f"[+] All empirical metrics & model comparisons saved to {METRICS_PATH}")
 
     total_duration = round(time.time() - start_time, 2)
-    print(f"\n[+] Entire pipeline completed in {total_duration}s.")
+    print(f"\n[+] Entire multi-model pipeline completed in {total_duration}s.")
     return metrics_data
 
 

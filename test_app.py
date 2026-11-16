@@ -1,8 +1,8 @@
 """
 =============================================================================
-SPAMGUARD AI - AUTOMATED TEST SUITE
+SPAM EMAIL DETECTION - AUTOMATED TEST SUITE
 =============================================================================
-Author: SPAMGUARD AI QA & ML Test Engineering
+Author: Spam Email Detection QA & ML Test Engineering
 Description: Unit and integration tests covering:
              - Backend health & status endpoints
              - Empirical model metrics validation
@@ -18,7 +18,7 @@ import json
 from app import app
 
 
-class SpamGuardTestCase(unittest.TestCase):
+class SpamEmailDetectionTestCase(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
@@ -171,7 +171,122 @@ class SpamGuardTestCase(unittest.TestCase):
         """Verify GET / renders HTML template with 200 OK."""
         response = self.client.get("/")
         self.assertEqual(response.status_code, 200)
-        self.assertIn(b"SPAMGUARD", response.data)
+        self.assertIn(b"SPAM EMAIL", response.data)
+
+    def test_14_predict_multi_field_payload(self):
+        """Verify prediction using separate subject, sender, and body fields."""
+        payload = {
+            "subject": "Action Required: Confirm your payroll deposit information",
+            "sender": "payroll-verification@internal-hr-portal.xyz",
+            "body": "Dear Employee, please verify your direct deposit routing number and password at http://192.168.1.50/payroll or your salary payout will be delayed."
+        }
+        response = self.client.post("/api/predict", json=payload)
+        self.assertEqual(response.status_code, 200)
+        data = response.get_json()
+        self.assertTrue(data["success"])
+        self.assertEqual(data["prediction"], "SPAM")
+        self.assertTrue(data["is_spam"])
+        self.assertIn("phishing_assessment", data)
+        self.assertTrue(data["phishing_assessment"]["phishing_detected"])
+        self.assertIn("input_summary", data)
+        self.assertTrue(data["input_summary"]["has_subject"])
+        self.assertTrue(data["input_summary"]["has_sender"])
+
+    def test_15_suspicious_url_detection(self):
+        """Verify suspicious URL detection (IP hostname, abused TLDs, and shorteners)."""
+        payload = {
+            "subject": "Invoice Follow-Up",
+            "sender": "billing@quick-invoices.top",
+            "body": "Please view your overdue invoice here: http://203.0.113.15/download and backup mirror http://tinyurl.com/invoice-xyz"
+        }
+        response = self.client.post("/api/predict", json=payload)
+        self.assertEqual(response.status_code, 200)
+        data = response.get_json()
+        phishing = data["phishing_assessment"]
+        self.assertGreater(phishing["url_analysis"]["suspicious_urls_count"], 0)
+        reasons_concat = " ".join([
+            " ".join(u["reasons"]) for u in phishing["url_analysis"]["suspicious_urls"]
+        ])
+        self.assertTrue(
+            "Direct IP-based URL" in reasons_concat or "URL shortener" in reasons_concat or "Abused" in reasons_concat
+        )
+
+    def test_16_non_guarantee_safety_disclaimer(self):
+        """Verify safety_guarantee is False and a clear defense-in-depth disclaimer is included."""
+        payload = {
+            "subject": "Quarterly Planning Meeting Notes",
+            "sender": "alice@company.com",
+            "body": "Here are the team action items from this morning's planning session. Please review before Friday."
+        }
+        response = self.client.post("/api/predict", json=payload)
+        self.assertEqual(response.status_code, 200)
+        data = response.get_json()
+        self.assertFalse(data["safety_guarantee"])
+        self.assertIn("safety_disclaimer", data)
+        self.assertIn("NOT a guarantee", data["safety_disclaimer"])
+
+    def test_17_input_length_limits(self):
+        """Verify oversized payloads trigger HTTP 400 validation errors."""
+        # Body over 100,000 characters
+        oversized_body = "A" * 100005
+        response = self.client.post("/api/predict", json={"body": oversized_body})
+        self.assertEqual(response.status_code, 400)
+        data = response.get_json()
+        self.assertIn("exceeds maximum allowed size", data["error"])
+
+        # Subject over 1,000 characters
+        oversized_subj = "S" * 1005
+        response = self.client.post("/api/predict", json={"subject": oversized_subj, "body": "Normal body"})
+        self.assertEqual(response.status_code, 400)
+
+    def test_18_multi_model_metrics_structure(self):
+        """Verify /api/metrics provides comparisons across all 4 models and dataset statistics."""
+        response = self.client.get("/api/metrics")
+        self.assertEqual(response.status_code, 200)
+        data = response.get_json()
+        self.assertIn("model_comparison", data)
+        self.assertEqual(len(data["model_comparison"]), 4)
+
+        model_names = [m["model_name"] for m in data["model_comparison"]]
+        self.assertIn("Multinomial Naive Bayes", model_names)
+        self.assertIn("Logistic Regression", model_names)
+        self.assertIn("Random Forest", model_names)
+        self.assertIn("Linear SVM", model_names)
+
+        self.assertIn("best_model_name", data)
+        self.assertIn("baseline_model_name", data)
+        self.assertEqual(data["baseline_model_name"], "Multinomial Naive Bayes")
+        self.assertEqual(data["total_dataset_samples"], 4235)
+        self.assertEqual(data["train_samples"], 3388)
+        self.assertEqual(data["test_samples"], 847)
+
+    def test_19_model_selection_parameter(self):
+        """Verify selecting baseline vs best model works in prediction API."""
+        payload = {
+            "email_text": "Subject: Important update\n\nPlease find the project timeline attached.",
+            "model": "baseline"
+        }
+        response = self.client.post("/api/predict", json=payload)
+        self.assertEqual(response.status_code, 200)
+        data = response.get_json()
+        self.assertEqual(data["model_classification"]["model_name"], "Multinomial Naive Bayes")
+
+    def test_20_distinct_phishing_vs_spam_indicators(self):
+        """Verify clear distinction between ML spam classification and heuristic phishing indicators."""
+        payload = {
+            "subject": "CRITICAL: Suspicious activity on your account",
+            "sender": "security-support@paypal-security-alert.xyz",
+            "body": "Your account was temporarily suspended. Click http://192.168.0.1/verify-login to reactivate immediately."
+        }
+        response = self.client.post("/api/predict", json=payload)
+        self.assertEqual(response.status_code, 200)
+        data = response.get_json()
+        # Both ML classification and Phishing assessment are present and structured
+        self.assertIn("model_classification", data)
+        self.assertIn("phishing_assessment", data)
+        self.assertIn("phishing_score", data["phishing_assessment"])
+        self.assertIn("threat_signals", data["phishing_assessment"])
+        self.assertGreater(len(data["phishing_assessment"]["threat_signals"]), 0)
 
 
 if __name__ == "__main__":

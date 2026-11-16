@@ -1,18 +1,38 @@
 /**
  * =============================================================================
- * SPAMGUARD AI – CLIENT-SIDE INFERENCE & INTERACTION CONTROLLER
+ * SPAM EMAIL DETECTION – THREAT DETECTION & ANALYTICS DASHBOARD CONTROLLER
  * =============================================================================
- * Author: SPAMGUARD AI Engineering Team
- * Objective: Real-time telemetry, async API calls to /api/predict and /api/metrics,
- *            interactive preset loaders, multi-stage loading radar, and dynamic UI.
+ * Author: Spam Email Detection Engineering Team
+ * Objective: Multi-model telemetry, asynchronous API calls to /api/predict
+ *            and /api/metrics, interactive presets, URL threat visualizations,
+ *            distinct phishing heuristics, and interactive confusion matrices.
  * =============================================================================
  */
 
 document.addEventListener('DOMContentLoaded', () => {
-    // DOM Elements Cache
+    // Input Mode Elements
+    const tabStructured = document.getElementById('tab-structured');
+    const tabRaw = document.getElementById('tab-raw');
+    const containerStructured = document.getElementById('container-structured');
+    const containerRaw = document.getElementById('container-raw');
+
+    // Input Fields
+    const emailSubject = document.getElementById('email-subject');
+    const emailSender = document.getElementById('email-sender');
+    const emailBody = document.getElementById('email-body');
     const emailInput = document.getElementById('email-input');
+
+    // Model Selector Elements
+    const chooseBestModelBtn = document.getElementById('choose-best-model');
+    const chooseBaselineModelBtn = document.getElementById('choose-baseline-model');
+    let selectedModel = 'best'; // 'best' (Linear SVM) or 'baseline' (Multinomial NB)
+
+    // Telemetry Elements
     const charCounter = document.getElementById('char-counter');
     const wordCounter = document.getElementById('word-counter');
+    const urlCounter = document.getElementById('url-counter');
+
+    // Buttons & Alerts
     const analyzeBtn = document.getElementById('analyze-btn');
     const analyzeBtnText = document.getElementById('analyze-btn-text');
     const analyzeSpinner = document.getElementById('analyze-spinner');
@@ -28,8 +48,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const stateVerdict = document.getElementById('state-verdict');
     const resultsTimeBadge = document.getElementById('results-time-badge');
 
-    // Verdict Elements
+    // ML Verdict Banner Elements
     const verdictBanner = document.getElementById('verdict-banner');
+    const verdictModelUsed = document.getElementById('verdict-model-used');
     const verdictIconWrap = document.getElementById('verdict-icon-wrap');
     const verdictIcon = document.getElementById('verdict-icon');
     const verdictHeading = document.getElementById('verdict-heading');
@@ -39,64 +60,175 @@ document.addEventListener('DOMContentLoaded', () => {
     const spamProbBar = document.getElementById('spam-prob-bar');
     const hamProbNum = document.getElementById('ham-prob-num');
     const hamProbBar = document.getElementById('ham-prob-bar');
-    const advisoryText = document.getElementById('advisory-text');
+
+    // Phishing & Threat Assessment Elements
+    const phishingScoreNum = document.getElementById('phishing-score-num');
+    const phishingVerdictText = document.getElementById('phishing-verdict-text');
+    const phishingSeverityTag = document.getElementById('phishing-severity-tag');
+    const urlThreatBadge = document.getElementById('url-threat-badge');
+    const urlFindingsList = document.getElementById('url-findings-list');
+    const senderFindingsText = document.getElementById('sender-findings-text');
     const signalsList = document.getElementById('signals-list');
     const signalsCountBadge = document.getElementById('signals-count-badge');
+    const disclaimerText = document.getElementById('disclaimer-text');
+
+    // Preprocessed Preview Elements
     const preprocessedSnippet = document.getElementById('preprocessed-snippet');
     const metaLatency = document.getElementById('meta-latency');
     const metaTokens = document.getElementById('meta-tokens');
+    const metaModelName = document.getElementById('meta-model-name');
 
-    // Telemetry & Metrics Elements
+    // Analytics Dashboard & Telemetry Elements
     const heroAcc = document.getElementById('hero-acc');
+    const heroF1 = document.getElementById('hero-f1');
     const heroPrec = document.getElementById('hero-prec');
     const kpiAccuracy = document.getElementById('kpi-accuracy');
     const kpiPrecision = document.getElementById('kpi-precision');
     const kpiRecall = document.getElementById('kpi-recall');
     const kpiF1 = document.getElementById('kpi-f1');
+    const modelComparisonTbody = document.getElementById('model-comparison-tbody');
+
+    // Confusion Matrix Elements
+    const matrixModelSelector = document.getElementById('matrix-model-selector');
+    const matrixModelSubtitle = document.getElementById('matrix-model-subtitle');
     const cmTn = document.getElementById('cm-tn');
     const cmFp = document.getElementById('cm-fp');
     const cmFn = document.getElementById('cm-fn');
     const cmTp = document.getElementById('cm-tp');
+    const cmSpecificity = document.getElementById('cm-specificity');
+    const cmFpRate = document.getElementById('cm-fp-rate');
+    const cmFnRate = document.getElementById('cm-fn-rate');
+    const cmSensitivity = document.getElementById('cm-sensitivity');
+
+    // Dataset Telemetry
+    const dsTotal = document.getElementById('ds-total');
+    const dsHam = document.getElementById('ds-ham');
+    const dsSpam = document.getElementById('ds-spam');
+    const dsTrain = document.getElementById('ds-train');
+    const dsTest = document.getElementById('ds-test');
+    const dsVocab = document.getElementById('ds-vocab');
     const topSpamVocabList = document.getElementById('top-spam-vocab-list');
     const topHamVocabList = document.getElementById('top-ham-vocab-list');
 
     // Navbar Status Pill
-    const systemStatusPill = document.getElementById('system-status-pill');
     const statusLabel = document.getElementById('status-label');
 
-    // Cached Benchmark Samples (Fallback if API is unreachable)
+    // Cached Data
     let benchmarkSamples = {};
+    let cachedMetrics = null;
+    let currentInputMode = 'structured'; // 'structured' or 'raw'
 
     // =========================================================================
-    // 1. Textarea Telemetry & Counter Listeners
+    // 1. Input Mode Tabs Switching
     // =========================================================================
 
-    function updateTextareaTelemetry() {
-        const text = emailInput.value || '';
+    function setInputMode(mode) {
+        currentInputMode = mode;
+        if (mode === 'structured') {
+            tabStructured.classList.add('active');
+            tabStructured.setAttribute('aria-selected', 'true');
+            tabRaw.classList.remove('active');
+            tabRaw.setAttribute('aria-selected', 'false');
+
+            containerStructured.classList.remove('hidden');
+            containerRaw.classList.add('hidden');
+        } else {
+            tabRaw.classList.add('active');
+            tabRaw.setAttribute('aria-selected', 'true');
+            tabStructured.classList.remove('active');
+            tabStructured.setAttribute('aria-selected', 'false');
+
+            containerRaw.classList.remove('hidden');
+            containerStructured.classList.add('hidden');
+
+            // Synchronize structured inputs into raw if raw is empty
+            if (!emailInput.value.trim() && (emailSubject.value || emailBody.value)) {
+                const parts = [];
+                if (emailSubject.value.trim()) parts.push(`Subject: ${emailSubject.value.trim()}`);
+                if (emailSender.value.trim()) parts.push(`From: ${emailSender.value.trim()}`);
+                if (emailBody.value.trim()) parts.push(emailBody.value.trim());
+                emailInput.value = parts.join('\n\n');
+            }
+        }
+        updateTelemetry();
+    }
+
+    tabStructured.addEventListener('click', () => setInputMode('structured'));
+    tabRaw.addEventListener('click', () => setInputMode('raw'));
+
+    // =========================================================================
+    // 2. Model Selection Toggle (Linear SVM Best vs Naive Bayes Baseline)
+    // =========================================================================
+
+    function selectModel(modelKey) {
+        selectedModel = modelKey;
+        if (modelKey === 'best') {
+            chooseBestModelBtn.classList.add('active');
+            chooseBaselineModelBtn.classList.remove('active');
+            if (statusLabel) statusLabel.textContent = 'Active: Linear SVM (99.29% F1)';
+        } else {
+            chooseBaselineModelBtn.classList.add('active');
+            chooseBestModelBtn.classList.remove('active');
+            if (statusLabel) statusLabel.textContent = 'Active: Multinomial NB (97.99% F1)';
+        }
+    }
+
+    chooseBestModelBtn.addEventListener('click', () => selectModel('best'));
+    chooseBaselineModelBtn.addEventListener('click', () => selectModel('baseline'));
+
+    // =========================================================================
+    // 3. Telemetry Counter Calculations
+    // =========================================================================
+
+    function getCombinedText() {
+        if (currentInputMode === 'structured') {
+            const parts = [];
+            if (emailSubject.value.trim()) parts.push(emailSubject.value.trim());
+            if (emailBody.value.trim()) parts.push(emailBody.value.trim());
+            return parts.join(' ');
+        }
+        return emailInput.value || '';
+    }
+
+    function updateTelemetry() {
+        const text = getCombinedText();
         const chars = text.length;
         const words = text.trim() ? text.trim().split(/\s+/).length : 0;
+        const urlMatches = text.match(/https?:\/\/[^\s<>"]+|www\.[^\s<>"]+/gi) || [];
 
         charCounter.textContent = chars.toLocaleString();
         wordCounter.textContent = words.toLocaleString();
+        urlCounter.textContent = urlMatches.length.toString();
 
         if (chars > 0) {
             hideInputError();
         }
     }
 
-    emailInput.addEventListener('input', updateTextareaTelemetry);
-    emailInput.addEventListener('keyup', updateTextareaTelemetry);
+    [emailSubject, emailSender, emailBody, emailInput].forEach(elem => {
+        if (elem) {
+            elem.addEventListener('input', updateTelemetry);
+            elem.addEventListener('keyup', updateTelemetry);
+        }
+    });
 
     // =========================================================================
-    // 2. Toolbar Actions (Clear & Paste)
+    // 4. Toolbar Actions (Clear & Paste)
     // =========================================================================
 
     clearInputBtn.addEventListener('click', () => {
+        emailSubject.value = '';
+        emailSender.value = '';
+        emailBody.value = '';
         emailInput.value = '';
-        updateTextareaTelemetry();
+        updateTelemetry();
         hideInputError();
         showState('idle');
-        emailInput.focus();
+        if (currentInputMode === 'structured') {
+            emailSubject.focus();
+        } else {
+            emailInput.focus();
+        }
     });
 
     pasteClipboardBtn.addEventListener('click', async () => {
@@ -104,10 +236,20 @@ document.addEventListener('DOMContentLoaded', () => {
             if (navigator.clipboard && navigator.clipboard.readText) {
                 const clipText = await navigator.clipboard.readText();
                 if (clipText) {
-                    emailInput.value = clipText;
-                    updateTextareaTelemetry();
+                    if (currentInputMode === 'structured') {
+                        // Check if clipboard contains a Subject line
+                        const subjMatch = clipText.match(/^Subject:\s*(.+)$/m);
+                        if (subjMatch) {
+                            emailSubject.value = subjMatch[1].trim();
+                            emailBody.value = clipText.replace(/^Subject:\s*.+$/m, '').trim();
+                        } else {
+                            emailBody.value = clipText;
+                        }
+                    } else {
+                        emailInput.value = clipText;
+                    }
+                    updateTelemetry();
                     hideInputError();
-                    emailInput.focus();
                 } else {
                     showInputError('Clipboard is empty.');
                 }
@@ -120,7 +262,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // =========================================================================
-    // 3. Benchmark Sample Loaders
+    // 5. Benchmark Sample Loaders
     // =========================================================================
 
     async function loadSamples() {
@@ -130,7 +272,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 benchmarkSamples = await resp.json();
             }
         } catch (e) {
-            console.warn('[SpamGuard] Could not fetch sample list:', e);
+            console.warn('[Spam Email Detection] Could not fetch sample list:', e);
         }
     }
 
@@ -138,22 +280,29 @@ document.addEventListener('DOMContentLoaded', () => {
         btn.addEventListener('click', () => {
             const sampleKey = btn.getAttribute('data-sample');
             if (benchmarkSamples && benchmarkSamples[sampleKey]) {
-                emailInput.value = benchmarkSamples[sampleKey].content;
-                updateTextareaTelemetry();
+                const sample = benchmarkSamples[sampleKey];
+
+                // Populate both structured and raw fields
+                emailSubject.value = sample.subject || '';
+                emailSender.value = sample.sender || '';
+                emailBody.value = sample.body || '';
+                emailInput.value = sample.content || '';
+
+                updateTelemetry();
                 hideInputError();
 
-                // Highlight active button briefly
+                // Highlight preset button briefly
                 btn.style.transform = 'scale(0.97)';
                 setTimeout(() => { btn.style.transform = ''; }, 150);
 
-                // Auto-trigger analysis for seamless user experience
+                // Auto-trigger analysis
                 triggerAnalysis();
             }
         });
     });
 
     // =========================================================================
-    // 4. State Management (Idle, Loading, Verdict)
+    // 6. State Management
     // =========================================================================
 
     function showState(state) {
@@ -167,10 +316,12 @@ document.addEventListener('DOMContentLoaded', () => {
             resultsTimeBadge.className = 'card-top-badge';
         } else if (state === 'loading') {
             stateLoading.classList.remove('hidden');
-            resultsTimeBadge.textContent = 'INFERENCE ACTIVE';
+            resultsTimeBadge.textContent = 'THREAT SCAN ACTIVE';
             resultsTimeBadge.className = 'card-top-badge badge-blue';
         } else if (state === 'verdict') {
             stateVerdict.classList.remove('hidden');
+            resultsTimeBadge.textContent = 'EVALUATED';
+            resultsTimeBadge.className = 'card-top-badge badge-purple';
         }
     }
 
@@ -184,35 +335,66 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // =========================================================================
-    // 5. Prediction Execution & Animation Pipeline
+    // 7. Prediction & Threat Inspection Execution
     // =========================================================================
 
     async function triggerAnalysis() {
-        const text = emailInput.value.trim();
+        let payload = {};
 
-        // Client-side Validation
-        if (!text) {
-            showInputError('Please enter email content before starting analysis.');
-            emailInput.focus();
-            return;
-        }
+        if (currentInputMode === 'structured') {
+            const subject = emailSubject.value.trim();
+            const sender = emailSender.value.trim();
+            const body = emailBody.value.trim();
 
-        if (text.length < 5) {
-            showInputError('Email content is too short (minimum 5 characters required).');
-            emailInput.focus();
-            return;
+            if (!body && !subject) {
+                showInputError('Please enter email subject or body before starting analysis.');
+                emailBody.focus();
+                return;
+            }
+
+            if ((subject + body).length < 5) {
+                showInputError('Email content is too short (minimum 5 characters required).');
+                emailBody.focus();
+                return;
+            }
+
+            payload = {
+                subject: subject,
+                sender: sender,
+                body: body,
+                model: selectedModel
+            };
+        } else {
+            const rawText = emailInput.value.trim();
+
+            if (!rawText) {
+                showInputError('Please enter email text before starting analysis.');
+                emailInput.focus();
+                return;
+            }
+
+            if (rawText.length < 5) {
+                showInputError('Email content is too short (minimum 5 characters required).');
+                emailInput.focus();
+                return;
+            }
+
+            payload = {
+                email_text: rawText,
+                model: selectedModel
+            };
         }
 
         hideInputError();
 
-        // Set Loading UI
+        // UI Loading state
         analyzeBtn.disabled = true;
         analyzeSpinner.classList.remove('hidden');
         analyzeIcon.classList.add('hidden');
-        analyzeBtnText.textContent = 'Analyzing Text Stream...';
+        analyzeBtnText.textContent = 'Scanning Message Telemetry...';
         showState('loading');
 
-        // Telemetry pipeline step animations
+        // Pipeline animation markers
         const step1 = document.getElementById('pipe-step-1');
         const step2 = document.getElementById('pipe-step-2');
         const step3 = document.getElementById('pipe-step-3');
@@ -221,269 +403,378 @@ document.addEventListener('DOMContentLoaded', () => {
         step2.className = 'pipeline-step';
         step3.className = 'pipeline-step';
 
-        setTimeout(() => {
-            if (step2) step2.className = 'pipeline-step step-active';
-        }, 150);
-
-        setTimeout(() => {
-            if (step3) step3.className = 'pipeline-step step-active';
-        }, 300);
-
-        const startTime = performance.now();
+        setTimeout(() => { if (step2) step2.className = 'pipeline-step step-active'; }, 150);
+        setTimeout(() => { if (step3) step3.className = 'pipeline-step step-active'; }, 300);
 
         try {
             const response = await fetch('/api/predict', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ email_text: text })
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
             });
 
             const result = await response.json();
-            const totalDuration = Math.round(performance.now() - startTime);
 
             if (!response.ok) {
-                showInputError(result.error || 'Failed to complete analysis.');
+                showInputError(result.error || 'Failed to complete threat analysis.');
                 showState('idle');
                 return;
             }
 
-            // Render result payload
-            renderPredictionVerdict(result, totalDuration);
+            renderThreatVerdict(result);
+            showState('verdict');
 
-        } catch (error) {
-            console.error('[SpamGuard] Inference error:', error);
-            showInputError('Network error connecting to SpamGuard backend. Please check server status.');
+        } catch (err) {
+            console.error('[Spam Email Detection] Analysis error:', err);
+            showInputError('Network error connecting to Spam Email Detection backend.');
             showState('idle');
         } finally {
             analyzeBtn.disabled = false;
             analyzeSpinner.classList.add('hidden');
             analyzeIcon.classList.remove('hidden');
-            analyzeBtnText.textContent = 'Analyze Email Threat';
+            analyzeBtnText.textContent = 'Execute Multi-Vector Analysis';
         }
     }
 
     analyzeBtn.addEventListener('click', triggerAnalysis);
 
     // =========================================================================
-    // 6. Verdict Rendering & Threat Indicators
+    // 8. Render Verdict & Threat Intelligence Output
     // =========================================================================
 
-    function renderPredictionVerdict(data, clientDuration) {
-        showState('verdict');
-
+    function renderThreatVerdict(data) {
         const isSpam = data.is_spam;
+        const modelName = data.model_classification ? data.model_classification.model_name : 'Linear SVM';
+        const spamPct = data.spam_probability;
+        const hamPct = data.ham_probability;
         const confidence = data.confidence;
-        const spamProb = data.spam_probability;
-        const hamProb = data.ham_probability;
         const riskLevel = data.risk_level;
 
-        // 1. Time Badge
-        resultsTimeBadge.textContent = `${clientDuration}ms LATENCY`;
-        resultsTimeBadge.className = isSpam ? 'card-top-badge badge-purple' : 'card-top-badge badge-blue';
+        // 1. Model Pretitle
+        if (verdictModelUsed) {
+            verdictModelUsed.textContent = `CLASSIFIER :: ${modelName.toUpperCase()}`;
+        }
 
-        // 2. Verdict Banner
-        verdictBanner.className = `verdict-banner ${isSpam ? 'verdict-spam' : 'verdict-ham'}`;
-
+        // 2. Verdict Banner & Risk Tag
         if (isSpam) {
-            verdictHeading.textContent = 'MALICIOUS SPAM DETECTED';
+            verdictBanner.className = 'verdict-banner verdict-spam';
+            verdictHeading.textContent = 'SPAM DETECTED';
+            verdictHeading.className = 'verdict-heading text-danger';
+
+            verdictRiskTag.textContent = `${riskLevel} RISK`;
+            verdictRiskTag.className = 'verdict-risk-tag tag-critical';
+
+            verdictConfidence.textContent = `${confidence.toFixed(1)}%`;
+            verdictIconWrap.className = 'verdict-icon-wrap icon-spam';
             verdictIcon.innerHTML = `
-                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
-                <line x1="12" y1="9" x2="12" y2="13"/>
-                <line x1="12" y1="17" x2="12.01" y2="17"/>
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                <line x1="12" y1="8" x2="12" y2="12"/>
+                <line x1="12" y1="16" x2="12.01" y2="16"/>
             `;
         } else {
-            verdictHeading.textContent = 'VERIFIED LEGITIMATE (HAM)';
+            verdictBanner.className = 'verdict-banner verdict-ham';
+            verdictHeading.textContent = 'UNLIKELY SPAM';
+            verdictHeading.className = 'verdict-heading text-success';
+
+            verdictRiskTag.textContent = 'LOW RISK';
+            verdictRiskTag.className = 'verdict-risk-tag tag-low';
+
+            verdictConfidence.textContent = `${confidence.toFixed(1)}%`;
+            verdictIconWrap.className = 'verdict-icon-wrap icon-ham';
             verdictIcon.innerHTML = `
                 <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
                 <polyline points="9 12 11 14 15 10"/>
             `;
         }
 
-        // 3. Risk Level Tag
-        verdictRiskTag.textContent = `${riskLevel} RISK`;
-        if (riskLevel === 'CRITICAL') {
-            verdictRiskTag.className = 'verdict-risk-tag risk-critical';
-        } else if (riskLevel === 'HIGH') {
-            verdictRiskTag.className = 'verdict-risk-tag risk-high';
-        } else if (riskLevel === 'MEDIUM') {
-            verdictRiskTag.className = 'verdict-risk-tag risk-medium';
-        } else {
-            verdictRiskTag.className = 'verdict-risk-tag risk-safe';
-        }
+        // 3. Probability Bars Animation
+        spamProbNum.textContent = `${spamPct.toFixed(1)}%`;
+        hamProbNum.textContent = `${hamPct.toFixed(1)}%`;
 
-        // 4. Confidence Gauge
-        verdictConfidence.textContent = `${confidence.toFixed(1)}%`;
-
-        // 5. Probability Bars with CSS transitions
-        spamProbNum.textContent = `${spamProb.toFixed(1)}%`;
-        hamProbNum.textContent = `${hamProb.toFixed(1)}%`;
-
-        // Trigger transition by applying width
         setTimeout(() => {
-            spamProbBar.style.width = `${spamProb}%`;
-            hamProbBar.style.width = `${hamProb}%`;
+            spamProbBar.style.width = `${Math.min(100, Math.max(0, spamPct))}%`;
+            hamProbBar.style.width = `${Math.min(100, Math.max(0, hamPct))}%`;
         }, 50);
 
-        // 6. Advisory Guidance
-        advisoryText.textContent = data.security_action || 'No anomalous action needed.';
+        // 4. Phishing Assessment Section
+        const phishing = data.phishing_assessment || {};
+        const phishingScore = phishing.phishing_score || 0;
+        const phishingRisk = phishing.phishing_risk_level || 'LOW';
 
-        // 7. Detected Signals List
-        signalsList.innerHTML = '';
-        const signals = data.detected_signals || [];
-        signalsCountBadge.textContent = `${signals.length} Identified`;
+        if (phishingScoreNum) phishingScoreNum.textContent = phishingScore;
+        if (phishingVerdictText) phishingVerdictText.textContent = phishing.phishing_verdict || 'Standard analysis complete';
 
-        if (signals.length === 0) {
-            signalsList.innerHTML = `
-                <div class="no-signals-msg">
-                    No deceptive phishing keywords, credential harvest vectors, or suspicious URLs detected.
-                </div>
-            `;
-        } else {
-            signals.forEach(sig => {
-                const item = document.createElement('div');
-                item.className = 'signal-item';
-                item.innerHTML = `
-                    <span class="signal-label">${escapeHtml(sig.label)}</span>
-                    <span class="signal-matched">${escapeHtml(sig.matched)}</span>
-                `;
-                signalsList.appendChild(item);
-            });
+        if (phishingSeverityTag) {
+            phishingSeverityTag.textContent = `${phishingRisk} RISK`;
+            phishingSeverityTag.className = `phishing-severity-tag tag-${phishingRisk.toLowerCase()}`;
         }
 
-        // 8. Preprocessing inspection
-        preprocessedSnippet.textContent = data.preprocessed_snippet || '...';
-        metaLatency.textContent = `${data.metrics?.inference_time_ms || clientDuration} ms`;
-        metaTokens.textContent = data.metrics?.preprocessed_tokens || 0;
-    }
+        // 5. URL Findings List
+        const urlAnalysis = phishing.url_analysis || {};
+        const urls = urlAnalysis.all_urls || [];
+        if (urlThreatBadge) {
+            urlThreatBadge.textContent = `${urls.length} Link${urls.length === 1 ? '' : 's'}`;
+        }
 
-    function escapeHtml(str) {
-        if (!str) return '';
-        return str
-            .replace(/&/g, '&amp;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;')
-            .replace(/"/g, '&quot;')
-            .replace(/'/g, '&#039;');
+        if (urlFindingsList) {
+            if (urls.length === 0) {
+                urlFindingsList.innerHTML = `<div class="finding-empty">No external hyperlinks found in email content.</div>`;
+            } else {
+                urlFindingsList.innerHTML = urls.map(u => {
+                    const isCrit = u.severity === 'CRITICAL';
+                    const isWarn = u.is_suspicious;
+                    const borderClass = isCrit ? 'item-critical' : (isWarn ? 'item-warn' : '');
+                    const reasonsHtml = u.reasons.map(r => `<div>• ${r}</div>`).join('');
+                    return `
+                        <div class="url-item ${borderClass}">
+                            <div class="url-item-head">
+                                <span class="url-link">${escapeHtml(u.url)}</span>
+                                <span class="phishing-severity-tag tag-${u.severity.toLowerCase()}">${u.severity}</span>
+                            </div>
+                            <div class="url-reasons-wrap">${reasonsHtml}</div>
+                        </div>
+                    `;
+                }).join('');
+            }
+        }
+
+        // 6. Sender Inspection Display
+        const senderEval = phishing.sender_analysis || {};
+        if (senderFindingsText) {
+            if (!senderEval.provided) {
+                senderFindingsText.innerHTML = `<span class="text-muted">No sender email address provided.</span>`;
+            } else if (senderEval.is_suspicious) {
+                const flagsHtml = senderEval.flags.map(f => `<span class="text-danger">⚠️ ${f}</span>`).join('<br>');
+                senderFindingsText.innerHTML = `<div><strong>${escapeHtml(senderEval.address)}</strong></div>${flagsHtml}`;
+            } else {
+                senderFindingsText.innerHTML = `<span class="text-success">✓ ${escapeHtml(senderEval.address)} (Standard RFC address)</span>`;
+            }
+        }
+
+        // 7. Threat Signals & Keywords List
+        const signals = phishing.threat_signals || [];
+        if (signalsCountBadge) {
+            signalsCountBadge.textContent = `${signals.length} Found`;
+        }
+
+        if (signalsList) {
+            if (signals.length === 0) {
+                signalsList.innerHTML = `<div class="finding-empty">Zero deceptive phishing or social engineering keywords found.</div>`;
+            } else {
+                signalsList.innerHTML = signals.map(sig => `
+                    <div class="signal-item">
+                        <span class="signal-dot dot-${sig.severity ? sig.severity.toLowerCase() : 'medium'}"></span>
+                        <div class="signal-content">
+                            <div class="signal-label">${escapeHtml(sig.label)} <span class="signal-cat">(${escapeHtml(sig.category || 'Threat')})</span></div>
+                            <div class="signal-matched">Matched: <code class="inline-code">"${escapeHtml(sig.matched)}"</code></div>
+                        </div>
+                    </div>
+                `).join('');
+            }
+        }
+
+        // 8. Safety Disclaimer Notice
+        if (disclaimerText && data.safety_disclaimer) {
+            disclaimerText.innerHTML = `<strong>Statistical Assessment Only:</strong> ${escapeHtml(data.safety_disclaimer)}`;
+        }
+
+        // 9. Preprocessed Tokens Preview
+        if (preprocessedSnippet) {
+            preprocessedSnippet.textContent = data.preprocessed_snippet || 'None';
+        }
+        if (metaLatency) {
+            metaLatency.textContent = `${data.metrics ? data.metrics.inference_time_ms : 0} ms`;
+        }
+        if (metaTokens) {
+            metaTokens.textContent = data.metrics ? data.metrics.preprocessed_tokens : 0;
+        }
+        if (metaModelName) {
+            metaModelName.textContent = modelName;
+        }
     }
 
     // =========================================================================
-    // 7. Empirical Metrics Fetcher & Hydration
+    // 9. Fetch & Render Analytics Dashboard Metrics (/api/metrics)
     // =========================================================================
 
-    async function loadMetrics() {
+    async function fetchMetrics() {
         try {
             const resp = await fetch('/api/metrics');
             if (!resp.ok) return;
 
             const data = await resp.json();
-            const metrics = data.metrics || {};
-            const cm = data.confusion_matrix || {};
+            cachedMetrics = data;
 
-            // Update Hero stats
-            if (heroAcc && metrics.accuracy_percent) heroAcc.textContent = `${metrics.accuracy_percent}%`;
-            if (heroPrec && metrics.precision_percent) heroPrec.textContent = `${metrics.precision_percent}%`;
+            // 1. Hero Ticker & KPI Cards (Best Model)
+            const m = data.metrics || {};
+            if (heroAcc) heroAcc.textContent = `${m.accuracy_percent || 99.29}%`;
+            if (heroF1) heroF1.textContent = `${m.f1_percent || 99.15}%`;
+            if (heroPrec) heroPrec.textContent = `${m.precision_percent || 99.71}%`;
 
-            // Update KPI cards
-            if (kpiAccuracy && metrics.accuracy_percent) kpiAccuracy.textContent = `${metrics.accuracy_percent}%`;
-            if (kpiPrecision && metrics.precision_percent) kpiPrecision.textContent = `${metrics.precision_percent}%`;
-            if (kpiRecall && metrics.recall_percent) kpiRecall.textContent = `${metrics.recall_percent}%`;
-            if (kpiF1 && metrics.f1_percent) kpiF1.textContent = `${metrics.f1_percent}%`;
+            if (kpiAccuracy) kpiAccuracy.textContent = `${m.accuracy_percent || 99.29}%`;
+            if (kpiPrecision) kpiPrecision.textContent = `${m.precision_percent || 99.71}%`;
+            if (kpiRecall) kpiRecall.textContent = `${m.recall_percent || 98.58}%`;
+            if (kpiF1) kpiF1.textContent = `${m.f1_percent || 99.15}%`;
 
-            // Update Confusion Matrix
-            if (cmTn && cm.true_negatives !== undefined) cmTn.textContent = cm.true_negatives.toLocaleString();
-            if (cmFp && cm.false_positives !== undefined) cmFp.textContent = cm.false_positives.toLocaleString();
-            if (cmFn && cm.false_negatives !== undefined) cmFn.textContent = cm.false_negatives.toLocaleString();
-            if (cmTp && cm.true_positives !== undefined) cmTp.textContent = cm.true_positives.toLocaleString();
+            // 2. Render 4-Model Comparison Table
+            renderModelComparisonTable(data.model_comparison || []);
 
-            // Render dynamic top spam tokens
-            if (topSpamVocabList && data.top_spam_keywords) {
-                topSpamVocabList.innerHTML = '';
-                data.top_spam_keywords.slice(0, 10).forEach(kw => {
-                    const span = document.createElement('span');
-                    span.className = 'vocab-pill spam-token';
-                    span.innerHTML = `${escapeHtml(kw.word)} <em>+${kw.log_ratio}</em>`;
-                    topSpamVocabList.appendChild(span);
-                });
+            // 3. Render Confusion Matrix for Best Model initially
+            const bestModelName = data.best_model_name || 'Linear SVM';
+            renderConfusionMatrixForModel(bestModelName);
+
+            // 4. Render Dataset Statistics
+            if (dsTotal) dsTotal.textContent = (data.total_dataset_samples || 4235).toLocaleString();
+            if (dsHam) {
+                const ham = data.ham_samples || 2471;
+                const tot = data.total_dataset_samples || 4235;
+                dsHam.textContent = `${ham.toLocaleString()} (${((ham/tot)*100).toFixed(1)}%)`;
             }
-
-            // Render dynamic top ham tokens
-            if (topHamVocabList && data.top_ham_keywords) {
-                topHamVocabList.innerHTML = '';
-                data.top_ham_keywords.slice(0, 10).forEach(kw => {
-                    const span = document.createElement('span');
-                    span.className = 'vocab-pill ham-token';
-                    span.innerHTML = `${escapeHtml(kw.word)} <em>${kw.log_ratio}</em>`;
-                    topHamVocabList.appendChild(span);
-                });
+            if (dsSpam) {
+                const spam = data.spam_samples || 1764;
+                const tot = data.total_dataset_samples || 4235;
+                dsSpam.textContent = `${spam.toLocaleString()} (${((spam/tot)*100).toFixed(1)}%)`;
             }
+            if (dsTrain) dsTrain.textContent = `${(data.train_samples || 3388).toLocaleString()} (80%)`;
+            if (dsTest) dsTest.textContent = `${(data.test_samples || 847).toLocaleString()} (20%)`;
+            if (dsVocab) dsVocab.textContent = (data.vocabulary_size || 15000).toLocaleString();
+
+            // 5. Render Explainable AI Top Vocabulary
+            renderTopVocabulary(data.top_spam_keywords || [], data.top_ham_keywords || []);
 
         } catch (e) {
-            console.warn('[SpamGuard] Could not load live metrics:', e);
+            console.warn('[Spam Email Detection] Could not load empirical metrics:', e);
         }
     }
 
     // =========================================================================
-    // 8. Health Check Verification
+    // 10. Model Comparison Table Renderer
     // =========================================================================
 
-    async function checkHealth() {
-        try {
-            const resp = await fetch('/api/health');
-            if (resp.ok) {
-                const health = await resp.json();
-                if (health.model_loaded) {
-                    statusLabel.textContent = 'ML Engine Ready';
-                    systemStatusPill.className = 'system-status-chip';
-                } else {
-                    statusLabel.textContent = 'Model Degraded';
-                    systemStatusPill.style.color = '#F59E0B';
-                }
+    function renderModelComparisonTable(models) {
+        if (!modelComparisonTbody || !models.length) return;
+
+        modelComparisonTbody.innerHTML = models.map(m => {
+            const isBest = m.is_best;
+            const isBaseline = m.is_baseline;
+            const rowClass = isBest ? 'model-row-best' : '';
+
+            let badgeHtml = `<span class="badge-cand">Evaluated</span>`;
+            if (isBest) {
+                badgeHtml = `<span class="badge-best">★ Best Performer</span>`;
+            } else if (isBaseline) {
+                badgeHtml = `<span class="badge-base">Baseline</span>`;
             }
-        } catch (e) {
-            statusLabel.textContent = 'Offline';
-            systemStatusPill.style.color = '#FF0055';
-        }
+
+            return `
+                <tr class="${rowClass}">
+                    <td><strong>${escapeHtml(m.model_name)}</strong></td>
+                    <td><span class="text-secondary">${escapeHtml(m.family || 'ML Classifier')}</span></td>
+                    <td><strong class="text-cyan">${m.accuracy_percent.toFixed(2)}%</strong></td>
+                    <td><span class="text-success">${m.precision_percent.toFixed(2)}%</span></td>
+                    <td><span class="text-secondary">${m.recall_percent.toFixed(2)}%</span></td>
+                    <td><strong class="${isBest ? 'text-cyan' : 'text-primary'}">${m.f1_percent.toFixed(2)}%</strong></td>
+                    <td><code class="inline-code">${m.fit_time_seconds ? m.fit_time_seconds.toFixed(3) : 0}s</code></td>
+                    <td>${badgeHtml}</td>
+                </tr>
+            `;
+        }).join('');
     }
 
     // =========================================================================
-    // 9. Smooth Scroll & Keyboard Shortcuts
+    // 11. Interactive Confusion Matrix Renderer
     // =========================================================================
 
-    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
-        anchor.addEventListener('click', function(e) {
-            const targetId = this.getAttribute('href');
-            if (targetId === '#') return;
+    function renderConfusionMatrixForModel(modelName) {
+        if (!cachedMetrics || !cachedMetrics.model_comparison) return;
 
-            const targetElement = document.querySelector(targetId);
-            if (targetElement) {
-                e.preventDefault();
-                targetElement.scrollIntoView({
-                    behavior: 'smooth',
-                    block: 'start'
-                });
+        const model = cachedMetrics.model_comparison.find(m => m.model_name === modelName);
+        if (!model || !model.confusion_matrix) return;
 
-                // Update active nav link
-                document.querySelectorAll('.nav-link').forEach(link => link.classList.remove('active'));
-                if (this.classList.contains('nav-link')) {
-                    this.classList.add('active');
-                }
+        const cm = model.confusion_matrix;
+        const tn = cm.true_negatives;
+        const fp = cm.false_positives;
+        const fn = cm.false_negatives;
+        const tp = cm.true_positives;
+
+        const specificity = (tn + fp) > 0 ? ((tn / (tn + fp)) * 100).toFixed(1) : 0;
+        const fpRate = (tn + fp) > 0 ? ((fp / (tn + fp)) * 100).toFixed(1) : 0;
+        const fnRate = (fn + tp) > 0 ? ((fn / (fn + tp)) * 100).toFixed(1) : 0;
+        const sensitivity = (fn + tp) > 0 ? ((tp / (fn + tp)) * 100).toFixed(1) : 0;
+
+        if (cmTn) cmTn.textContent = tn;
+        if (cmFp) cmFp.textContent = fp;
+        if (cmFn) cmFn.textContent = fn;
+        if (cmTp) cmTp.textContent = tp;
+
+        if (cmSpecificity) cmSpecificity.textContent = `${specificity}% Specificity`;
+        if (cmFpRate) cmFpRate.textContent = `${fpRate}% False Alarm Rate`;
+        if (cmFnRate) cmFnRate.textContent = `${fnRate}% Miss Rate`;
+        if (cmSensitivity) cmSensitivity.textContent = `${sensitivity}% Catch Rate`;
+
+        if (matrixModelSubtitle) {
+            const role = model.is_best ? '(Best Performer)' : (model.is_baseline ? '(Baseline)' : '(Candidate)');
+            matrixModelSubtitle.innerHTML = `Showing independent test set verification for <strong>${escapeHtml(modelName)}</strong> ${role}:`;
+        }
+
+        // Update active pill
+        document.querySelectorAll('.matrix-pill').forEach(pill => {
+            if (pill.getAttribute('data-cm-model') === modelName) {
+                pill.classList.add('active');
+            } else {
+                pill.classList.remove('active');
             }
         });
-    });
+    }
 
-    // Keyboard shortcut: Ctrl+Enter / Cmd+Enter inside textarea submits analysis
-    emailInput.addEventListener('keydown', (e) => {
-        if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
-            e.preventDefault();
-            triggerAnalysis();
+    // Confusion Matrix Pill Listeners
+    if (matrixModelSelector) {
+        matrixModelSelector.addEventListener('click', (e) => {
+            const pill = e.target.closest('.matrix-pill');
+            if (pill) {
+                const modelName = pill.getAttribute('data-cm-model');
+                renderConfusionMatrixForModel(modelName);
+            }
+        });
+    }
+
+    // =========================================================================
+    // 12. Top Vocabulary Pills Renderer
+    // =========================================================================
+
+    function renderTopVocabulary(spamKeywords, hamKeywords) {
+        if (topSpamVocabList && spamKeywords.length) {
+            topSpamVocabList.innerHTML = spamKeywords.slice(0, 10).map(k => {
+                const score = k.weight !== undefined ? k.weight : k.log_ratio;
+                const sign = score > 0 ? '+' : '';
+                return `<span class="vocab-pill spam-token">${escapeHtml(k.word)} <em>${sign}${score.toFixed(2)}</em></span>`;
+            }).join('');
         }
-    });
 
-    // Initialize System Data
+        if (topHamVocabList && hamKeywords.length) {
+            topHamVocabList.innerHTML = hamKeywords.slice(0, 10).map(k => {
+                const score = k.weight !== undefined ? k.weight : k.log_ratio;
+                const sign = score > 0 ? '+' : '';
+                return `<span class="vocab-pill ham-token">${escapeHtml(k.word)} <em>${sign}${score.toFixed(2)}</em></span>`;
+            }).join('');
+        }
+    }
+
+    // Helper: Escape HTML
+    function escapeHtml(str) {
+        if (!str) return '';
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
+    // =========================================================================
+    // 13. Initialization
+    // =========================================================================
     loadSamples();
-    loadMetrics();
-    checkHealth();
-    updateTextareaTelemetry();
+    fetchMetrics();
+    updateTelemetry();
 });

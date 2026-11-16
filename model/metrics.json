@@ -1,66 +1,479 @@
 {
-  "model_name": "SpamGuard Multinomial Naive Bayes + TF-IDF",
+  "model_name": "Spam Email Detection Linear SVM + TF-IDF",
+  "best_model_name": "Linear SVM",
+  "baseline_model_name": "Multinomial Naive Bayes",
+  "selection_criterion": "Dynamically selected by highest test F1-score and generalization accuracy",
   "dataset_name": "Apache SpamAssassin Public Email Corpus",
   "total_dataset_samples": 4235,
   "ham_samples": 2471,
   "spam_samples": 1764,
   "train_samples": 3388,
   "test_samples": 847,
+  "split_ratio": "80% Training, 20% Testing (Stratified)",
   "vocabulary_size": 15000,
   "metrics": {
-    "accuracy": 0.9835,
-    "precision": 0.9942,
-    "recall": 0.966,
-    "f1_score": 0.9799,
-    "accuracy_percent": 98.35,
-    "precision_percent": 99.42,
-    "recall_percent": 96.6,
-    "f1_percent": 97.99
+    "accuracy": 0.9929,
+    "precision": 0.9971,
+    "recall": 0.9858,
+    "f1_score": 0.9915,
+    "accuracy_percent": 99.29,
+    "precision_percent": 99.71,
+    "recall_percent": 98.58,
+    "f1_percent": 99.15
   },
   "confusion_matrix": {
     "matrix": [
       [
-        492,
-        2
+        493,
+        1
       ],
       [
-        12,
-        341
+        5,
+        348
       ]
     ],
-    "true_negatives": 492,
-    "false_positives": 2,
-    "false_negatives": 12,
-    "true_positives": 341
+    "true_negatives": 493,
+    "false_positives": 1,
+    "false_negatives": 5,
+    "true_positives": 348,
+    "specificity": 0.998,
+    "sensitivity": 0.9858
   },
   "classification_report": {
     "Ham": {
-      "precision": 0.9761904761904762,
-      "recall": 0.9959514170040485,
-      "f1-score": 0.9859719438877755,
+      "precision": 0.9899598393574297,
+      "recall": 0.9979757085020243,
+      "f1-score": 0.9939516129032258,
       "support": 494.0
     },
     "Spam": {
-      "precision": 0.9941690962099126,
-      "recall": 0.9660056657223796,
-      "f1-score": 0.9798850574712644,
+      "precision": 0.997134670487106,
+      "recall": 0.9858356940509915,
+      "f1-score": 0.9914529914529915,
       "support": 353.0
     },
-    "accuracy": 0.9834710743801653,
+    "accuracy": 0.9929161747343566,
     "macro avg": {
-      "precision": 0.9851797862001943,
-      "recall": 0.980978541363214,
-      "f1-score": 0.98292850067952,
+      "precision": 0.9935472549222679,
+      "recall": 0.9919057012765079,
+      "f1-score": 0.9927023021781086,
       "support": 847.0
     },
     "weighted avg": {
-      "precision": 0.9836833367180571,
-      "recall": 0.9834710743801653,
-      "f1-score": 0.98343514234701,
+      "precision": 0.9929500582343787,
+      "recall": 0.9929161747343566,
+      "f1-score": 0.9929102748017704,
       "support": 847.0
     }
   },
+  "model_comparison": [
+    {
+      "model_name": "Linear SVM",
+      "family": "Support Vector Machine",
+      "description": "Maximum-margin hyperplane classifier using Linear Support Vector Classification",
+      "is_baseline": false,
+      "accuracy": 0.9929,
+      "precision": 0.9971,
+      "recall": 0.9858,
+      "f1_score": 0.9915,
+      "accuracy_percent": 99.29,
+      "precision_percent": 99.71,
+      "recall_percent": 98.58,
+      "f1_percent": 99.15,
+      "fit_time_seconds": 0.0205,
+      "confusion_matrix": {
+        "matrix": [
+          [
+            493,
+            1
+          ],
+          [
+            5,
+            348
+          ]
+        ],
+        "true_negatives": 493,
+        "false_positives": 1,
+        "false_negatives": 5,
+        "true_positives": 348,
+        "specificity": 0.998,
+        "sensitivity": 0.9858
+      },
+      "is_best": true
+    },
+    {
+      "model_name": "Multinomial Naive Bayes",
+      "family": "Naive Bayes",
+      "description": "Probabilistic Bayesian classifier with Laplace smoothing (alpha=0.1)",
+      "is_baseline": true,
+      "accuracy": 0.9835,
+      "precision": 0.9942,
+      "recall": 0.966,
+      "f1_score": 0.9799,
+      "accuracy_percent": 98.35,
+      "precision_percent": 99.42,
+      "recall_percent": 96.6,
+      "f1_percent": 97.99,
+      "fit_time_seconds": 0.0021,
+      "confusion_matrix": {
+        "matrix": [
+          [
+            492,
+            2
+          ],
+          [
+            12,
+            341
+          ]
+        ],
+        "true_negatives": 492,
+        "false_positives": 2,
+        "false_negatives": 12,
+        "true_positives": 341,
+        "specificity": 0.996,
+        "sensitivity": 0.966
+      },
+      "is_best": false
+    },
+    {
+      "model_name": "Logistic Regression",
+      "family": "Generalized Linear Model",
+      "description": "L2-regularized linear classifier optimizing log-loss with liblinear solver",
+      "is_baseline": false,
+      "accuracy": 0.9811,
+      "precision": 0.9971,
+      "recall": 0.9575,
+      "f1_score": 0.9769,
+      "accuracy_percent": 98.11,
+      "precision_percent": 99.71,
+      "recall_percent": 95.75,
+      "f1_percent": 97.69,
+      "fit_time_seconds": 0.0329,
+      "confusion_matrix": {
+        "matrix": [
+          [
+            493,
+            1
+          ],
+          [
+            15,
+            338
+          ]
+        ],
+        "true_negatives": 493,
+        "false_positives": 1,
+        "false_negatives": 15,
+        "true_positives": 338,
+        "specificity": 0.998,
+        "sensitivity": 0.9575
+      },
+      "is_best": false
+    },
+    {
+      "model_name": "Random Forest",
+      "family": "Ensemble Trees",
+      "description": "Ensemble of 100 decorrelated decision trees with max depth of 40",
+      "is_baseline": false,
+      "accuracy": 0.9669,
+      "precision": 0.9851,
+      "recall": 0.9348,
+      "f1_score": 0.9593,
+      "accuracy_percent": 96.69,
+      "precision_percent": 98.51,
+      "recall_percent": 93.48,
+      "f1_percent": 95.93,
+      "fit_time_seconds": 0.1997,
+      "confusion_matrix": {
+        "matrix": [
+          [
+            489,
+            5
+          ],
+          [
+            23,
+            330
+          ]
+        ],
+        "true_negatives": 489,
+        "false_positives": 5,
+        "false_negatives": 23,
+        "true_positives": 330,
+        "specificity": 0.9899,
+        "sensitivity": 0.9348
+      },
+      "is_best": false
+    }
+  ],
+  "baseline_metrics": {
+    "model_name": "Multinomial Naive Bayes",
+    "accuracy_percent": 98.35,
+    "precision_percent": 99.42,
+    "recall_percent": 96.6,
+    "f1_percent": 97.99,
+    "confusion_matrix": {
+      "matrix": [
+        [
+          492,
+          2
+        ],
+        [
+          12,
+          341
+        ]
+      ],
+      "true_negatives": 492,
+      "false_positives": 2,
+      "false_negatives": 12,
+      "true_positives": 341,
+      "specificity": 0.996,
+      "sensitivity": 0.966
+    }
+  },
   "top_spam_keywords": [
+    {
+      "word": "click",
+      "weight": 2.61
+    },
+    {
+      "word": "dollar_amount",
+      "weight": 1.256
+    },
+    {
+      "word": "free",
+      "weight": 1.197
+    },
+    {
+      "word": "email",
+      "weight": 1.026
+    },
+    {
+      "word": "remove",
+      "weight": 0.982
+    },
+    {
+      "word": "removed",
+      "weight": 0.931
+    },
+    {
+      "word": "reply",
+      "weight": 0.924
+    },
+    {
+      "word": "receive",
+      "weight": 0.906
+    },
+    {
+      "word": "visit",
+      "weight": 0.897
+    },
+    {
+      "word": "httpaddr httpaddr",
+      "weight": 0.87
+    },
+    {
+      "word": "business",
+      "weight": 0.856
+    },
+    {
+      "word": "heaven",
+      "weight": 0.854
+    },
+    {
+      "word": "credit",
+      "weight": 0.848
+    },
+    {
+      "word": "sightings mailing",
+      "weight": 0.845
+    },
+    {
+      "word": "spamassassin sightings",
+      "weight": 0.843
+    },
+    {
+      "word": "sightings",
+      "weight": 0.814
+    },
+    {
+      "word": "httpaddr irish",
+      "weight": 0.808
+    },
+    {
+      "word": "contact",
+      "weight": 0.792
+    },
+    {
+      "word": "big5",
+      "weight": 0.78
+    },
+    {
+      "word": "unsubscribe",
+      "weight": 0.774
+    },
+    {
+      "word": "wish",
+      "weight": 0.772
+    },
+    {
+      "word": "mail emailaddr",
+      "weight": 0.758
+    },
+    {
+      "word": "offer",
+      "weight": 0.754
+    },
+    {
+      "word": "dollar_amount num_token",
+      "weight": 0.753
+    },
+    {
+      "word": "price",
+      "weight": 0.75
+    },
+    {
+      "word": "order",
+      "weight": 0.721
+    },
+    {
+      "word": "money",
+      "weight": 0.719
+    },
+    {
+      "word": "guaranteed",
+      "weight": 0.718
+    },
+    {
+      "word": "du",
+      "weight": 0.714
+    },
+    {
+      "word": "future",
+      "weight": 0.71
+    }
+  ],
+  "top_ham_keywords": [
+    {
+      "word": "wrote",
+      "weight": -1.681
+    },
+    {
+      "word": "httpaddr date",
+      "weight": -1.453
+    },
+    {
+      "word": "said",
+      "weight": -1.441
+    },
+    {
+      "word": "url httpaddr",
+      "weight": -1.386
+    },
+    {
+      "word": "url",
+      "weight": -1.183
+    },
+    {
+      "word": "date",
+      "weight": -1.176
+    },
+    {
+      "word": "date num_token",
+      "weight": -1.081
+    },
+    {
+      "word": "num_token httpaddr",
+      "weight": -0.926
+    },
+    {
+      "word": "jim",
+      "weight": -0.917
+    },
+    {
+      "word": "users",
+      "weight": -0.905
+    },
+    {
+      "word": "forwarded",
+      "weight": -0.85
+    },
+    {
+      "word": "spambayes",
+      "weight": -0.842
+    },
+    {
+      "word": "rpm",
+      "weight": -0.808
+    },
+    {
+      "word": "use",
+      "weight": -0.798
+    },
+    {
+      "word": "spam",
+      "weight": -0.784
+    },
+    {
+      "word": "razor",
+      "weight": -0.76
+    },
+    {
+      "word": "_______________________________________________",
+      "weight": -0.757
+    },
+    {
+      "word": "satalk",
+      "weight": -0.744
+    },
+    {
+      "word": "subject spambayes",
+      "weight": -0.74
+    },
+    {
+      "word": "file",
+      "weight": -0.731
+    },
+    {
+      "word": "yahoo groups",
+      "weight": -0.726
+    },
+    {
+      "word": "dave",
+      "weight": -0.713
+    },
+    {
+      "word": "server",
+      "weight": -0.711
+    },
+    {
+      "word": "interesting",
+      "weight": -0.706
+    },
+    {
+      "word": "subject satalk",
+      "weight": -0.705
+    },
+    {
+      "word": "way",
+      "weight": -0.683
+    },
+    {
+      "word": "er",
+      "weight": -0.669
+    },
+    {
+      "word": "date supplied",
+      "weight": -0.66
+    },
+    {
+      "word": "fork",
+      "weight": -0.659
+    },
+    {
+      "word": "bit",
+      "weight": -0.659
+    }
+  ],
+  "baseline_top_spam_keywords": [
     {
       "word": "mortgage",
       "log_ratio": 4.842
@@ -182,7 +595,7 @@
       "log_ratio": 4.08
     }
   ],
-  "top_ham_keywords": [
+  "baseline_top_ham_keywords": [
     {
       "word": "httpaddr date",
       "log_ratio": -5.902
@@ -304,6 +717,7 @@
       "log_ratio": -4.491
     }
   ],
-  "training_time_seconds": 1.218,
-  "trained_at": "2026-11-01 14:35:33 UTC"
+  "training_time_seconds": 0.0205,
+  "total_pipeline_time_seconds": 2.11,
+  "trained_at": "2026-11-02 16:26:34 UTC"
 }

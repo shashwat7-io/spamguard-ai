@@ -1,5 +1,5 @@
 /* ==========================================================================
-   SPAMGUARD AI – MASTER CYBERSECURITY DESIGN SYSTEM
+   SPAM EMAIL DETECTION – MASTER CYBERSECURITY DESIGN SYSTEM
    ========================================================================== */
 
 :root {
@@ -1933,3 +1933,596 @@ section {
         transform: translateY(0);
     }
 }
+
+/* ==========================================================================
+   Input Mode Tabs & Structured Input Controls
+   ========================================================================== */
+
+.input-mode-tabs {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 1.25rem;
+    background: rgba(12, 18, 34, 0.7);
+    padding: 0.35rem;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border-subtle);
+}
+
+.mode-tab {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.65rem 1rem;
+    background: transparent;
+    border: none;
+    border-radius: 6px;
+    color: var(--text-muted);
+    font-size: 0.82rem;
+    font-weight: 600;
+    font-family: var(--font-sans);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.mode-tab:hover {
+    color: var(--text-primary);
+    background: rgba(255, 255, 255, 0.04);
+}
+
+.mode-tab.active {
+    color: var(--cyan-neon);
+    background: rgba(0, 242, 254, 0.12);
+    box-shadow: 0 0 15px -3px var(--cyan-glow);
+    border: 1px solid rgba(0, 242, 254, 0.3);
+}
+
+.tab-icon {
+    font-size: 1rem;
+}
+
+.structured-inputs-container {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+}
+
+.cyber-label {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    font-family: var(--font-sans);
+    letter-spacing: 0.02em;
+}
+
+.label-optional {
+    font-size: 0.72rem;
+    font-weight: 400;
+    color: var(--text-muted);
+}
+
+.label-limit {
+    font-size: 0.72rem;
+    font-family: var(--font-mono);
+    color: var(--text-muted);
+}
+
+.cyber-input {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    background: rgba(8, 14, 28, 0.85);
+    border: 1px solid var(--border-card);
+    border-radius: var(--radius-sm);
+    color: var(--text-primary);
+    font-family: var(--font-mono);
+    font-size: 0.85rem;
+    transition: all var(--transition-fast);
+    outline: none;
+}
+
+.cyber-input:focus {
+    border-color: var(--cyan-neon);
+    background: rgba(12, 20, 40, 0.95);
+    box-shadow: 0 0 15px -3px var(--cyan-glow);
+}
+
+.cyber-input::placeholder {
+    color: rgba(148, 163, 184, 0.45);
+    font-family: var(--font-sans);
+    font-size: 0.82rem;
+}
+
+/* Model Selector Bar */
+.model-select-bar {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.65rem 0.85rem;
+    background: rgba(12, 18, 34, 0.6);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm);
+    margin-bottom: 1rem;
+}
+
+.model-select-label {
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+    text-transform: uppercase;
+}
+
+.model-pills-group {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    flex: 1;
+}
+
+.model-choice-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.4rem 0.8rem;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-pill);
+    color: var(--text-secondary);
+    font-size: 0.75rem;
+    font-weight: 600;
+    font-family: var(--font-sans);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.model-choice-pill:hover {
+    color: var(--text-primary);
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+.model-choice-pill.active {
+    color: var(--cyan-neon);
+    background: rgba(0, 242, 254, 0.1);
+    border-color: var(--cyan-neon);
+    box-shadow: 0 0 12px -3px var(--cyan-glow);
+}
+
+.pill-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+}
+
+.dot-best {
+    background: var(--cyan-neon);
+    box-shadow: 0 0 6px var(--cyan-neon);
+}
+
+.dot-baseline {
+    background: var(--purple-neon);
+    box-shadow: 0 0 6px var(--purple-neon);
+}
+
+.pill-badge-best {
+    padding: 0.1rem 0.4rem;
+    background: rgba(0, 242, 254, 0.2);
+    color: var(--cyan-neon);
+    border-radius: 4px;
+    font-size: 0.65rem;
+    font-weight: 700;
+    margin-left: 0.2rem;
+}
+
+.pill-badge-base {
+    padding: 0.1rem 0.4rem;
+    background: rgba(139, 92, 246, 0.2);
+    color: var(--purple-neon);
+    border-radius: 4px;
+    font-size: 0.65rem;
+    font-weight: 700;
+    margin-left: 0.2rem;
+}
+
+/* ==========================================================================
+   Distinct Phishing Threat Intelligence Panel
+   ========================================================================== */
+
+.phishing-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
+    margin-top: 1.25rem;
+    padding: 1.2rem;
+    background: rgba(12, 18, 34, 0.85);
+    border: 1px solid rgba(245, 158, 11, 0.25);
+    border-radius: var(--radius-md);
+    box-shadow: 0 8px 24px -8px rgba(0, 0, 0, 0.5);
+}
+
+.phishing-panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.phishing-panel-title {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    font-family: var(--font-sans);
+}
+
+.shield-badge {
+    font-size: 1.1rem;
+}
+
+.phishing-score-pill {
+    padding: 0.35rem 0.75rem;
+    background: rgba(245, 158, 11, 0.15);
+    border: 1px solid rgba(245, 158, 11, 0.4);
+    border-radius: var(--radius-pill);
+    color: var(--warning-amber);
+    font-size: 0.75rem;
+    font-family: var(--font-mono);
+}
+
+.phishing-status-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.65rem 0.85rem;
+    background: rgba(8, 14, 28, 0.7);
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border-subtle);
+}
+
+.phishing-verdict-text {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+}
+
+.phishing-severity-tag {
+    padding: 0.2rem 0.6rem;
+    border-radius: 4px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    font-family: var(--font-mono);
+    text-transform: uppercase;
+}
+
+.tag-critical {
+    background: rgba(255, 0, 85, 0.2);
+    color: var(--danger-red);
+    border: 1px solid var(--danger-red);
+}
+
+.tag-high {
+    background: rgba(255, 107, 107, 0.2);
+    color: #ff6b6b;
+    border: 1px solid #ff6b6b;
+}
+
+.tag-medium {
+    background: rgba(245, 158, 11, 0.2);
+    color: var(--warning-amber);
+    border: 1px solid var(--warning-amber);
+}
+
+.tag-low {
+    background: rgba(16, 185, 129, 0.2);
+    color: var(--success-emerald);
+    border: 1px solid var(--success-emerald);
+}
+
+/* Threat Subcards */
+.threat-subcard {
+    background: rgba(8, 14, 28, 0.65);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm);
+    padding: 0.85rem 1rem;
+}
+
+.subcard-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.subcard-icon {
+    font-size: 0.9rem;
+}
+
+.subcard-title {
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    font-family: var(--font-sans);
+    flex: 1;
+}
+
+.subcard-badge {
+    padding: 0.15rem 0.5rem;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: var(--radius-pill);
+    font-size: 0.7rem;
+    font-family: var(--font-mono);
+    color: var(--text-muted);
+}
+
+.url-findings-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.url-item {
+    padding: 0.5rem 0.75rem;
+    background: rgba(12, 20, 36, 0.9);
+    border-radius: 6px;
+    border-left: 3px solid var(--warning-amber);
+    font-size: 0.78rem;
+}
+
+.url-item.item-critical {
+    border-left-color: var(--danger-red);
+}
+
+.url-item-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.25rem;
+}
+
+.url-link {
+    color: var(--cyan-neon);
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    word-break: break-all;
+}
+
+.url-reasons-wrap {
+    color: var(--text-secondary);
+    font-size: 0.74rem;
+    line-height: 1.4;
+}
+
+.finding-empty {
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    font-style: italic;
+}
+
+.sender-findings-text {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    font-family: var(--font-mono);
+}
+
+/* ==========================================================================
+   Mandatory Defense-in-Depth Safety Disclaimer Box
+   ========================================================================== */
+
+.safety-disclaimer-box {
+    margin-top: 1.25rem;
+    padding: 1rem 1.2rem;
+    background: rgba(16, 185, 129, 0.08);
+    border: 1px solid rgba(16, 185, 129, 0.3);
+    border-radius: var(--radius-md);
+    box-shadow: 0 4px 20px -5px rgba(16, 185, 129, 0.15);
+}
+
+.disclaimer-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.4rem;
+}
+
+.disclaimer-icon {
+    font-size: 1.1rem;
+}
+
+.disclaimer-title {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--success-emerald);
+    font-family: var(--font-sans);
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+}
+
+.disclaimer-text {
+    font-size: 0.78rem;
+    color: var(--text-secondary);
+    line-height: 1.5;
+}
+
+.disclaimer-text strong {
+    color: var(--text-primary);
+}
+
+/* ==========================================================================
+   Model Comparison Matrix Table & Analytics Dashboard
+   ========================================================================== */
+
+.comparison-table-card {
+    overflow: hidden;
+}
+
+.table-responsive {
+    width: 100%;
+    overflow-x: auto;
+}
+
+.cyber-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: var(--font-sans);
+    text-align: left;
+}
+
+.cyber-table th {
+    padding: 0.85rem 1rem;
+    background: rgba(12, 18, 34, 0.9);
+    color: var(--text-muted);
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    border-bottom: 1px solid var(--border-card);
+    white-space: nowrap;
+}
+
+.cyber-table td {
+    padding: 0.9rem 1rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+    font-size: 0.84rem;
+    color: var(--text-primary);
+    white-space: nowrap;
+}
+
+.cyber-table tr:hover td {
+    background: rgba(255, 255, 255, 0.02);
+}
+
+.cyber-table tr.model-row-best td {
+    background: rgba(0, 242, 254, 0.06);
+    border-bottom-color: rgba(0, 242, 254, 0.2);
+}
+
+.cyber-table tr.model-row-best td:first-child {
+    border-left: 3px solid var(--cyan-neon);
+}
+
+.badge-best {
+    display: inline-block;
+    padding: 0.2rem 0.6rem;
+    background: rgba(0, 242, 254, 0.2);
+    color: var(--cyan-neon);
+    border: 1px solid var(--cyan-neon);
+    border-radius: var(--radius-pill);
+    font-size: 0.7rem;
+    font-weight: 700;
+    font-family: var(--font-mono);
+}
+
+.badge-base {
+    display: inline-block;
+    padding: 0.2rem 0.6rem;
+    background: rgba(139, 92, 246, 0.2);
+    color: var(--purple-neon);
+    border: 1px solid var(--purple-neon);
+    border-radius: var(--radius-pill);
+    font-size: 0.7rem;
+    font-weight: 700;
+    font-family: var(--font-mono);
+}
+
+.badge-cand {
+    display: inline-block;
+    padding: 0.2rem 0.6rem;
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--text-muted);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-pill);
+    font-size: 0.7rem;
+    font-family: var(--font-mono);
+}
+
+/* Interactive Confusion Matrix Switcher */
+.matrix-model-pills {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    margin-bottom: 1rem;
+}
+
+.matrix-pill {
+    padding: 0.45rem 0.85rem;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-pill);
+    color: var(--text-muted);
+    font-size: 0.75rem;
+    font-weight: 600;
+    font-family: var(--font-sans);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.matrix-pill:hover {
+    color: var(--text-primary);
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+.matrix-pill.active {
+    color: var(--cyan-neon);
+    background: rgba(0, 242, 254, 0.12);
+    border-color: var(--cyan-neon);
+    box-shadow: 0 0 12px -3px var(--cyan-glow);
+}
+
+/* Dataset Statistics Grid */
+.dataset-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+}
+
+.ds-stat-item {
+    display: flex;
+    flex-direction: column;
+    padding: 0.75rem 0.85rem;
+    background: rgba(8, 14, 28, 0.7);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm);
+}
+
+.ds-stat-val {
+    font-size: 1.15rem;
+    font-weight: 700;
+    font-family: var(--font-mono);
+    color: var(--text-primary);
+    margin-bottom: 0.2rem;
+}
+
+.ds-stat-label {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    font-family: var(--font-sans);
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .input-mode-tabs {
+        flex-direction: column;
+    }
+    .model-select-bar {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    .matrix-model-pills {
+        flex-direction: column;
+    }
+}
+
