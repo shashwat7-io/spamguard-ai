@@ -1,33 +1,15 @@
-"""
-=============================================================================
-SPAM EMAIL DETECTION - AUTOMATED TEST SUITE
-=============================================================================
-Author: Spam Email Detection QA & ML Test Engineering
-Description: Unit and integration tests covering:
-             - Backend health & status endpoints
-             - Empirical model metrics validation
-             - True positive (Spam & Phishing) email predictions
-             - True negative (Legitimate & Ham) email predictions
-             - Input validation (empty, whitespace, short strings, invalid payloads)
-             - Edge cases (special characters, numbers, URLs)
-=============================================================================
-"""
-
 import unittest
 import json
 from app import app
-
 
 class SpamEmailDetectionTestCase(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        """Configure test client."""
         app.config["TESTING"] = True
         cls.client = app.test_client()
 
     def test_01_health_endpoint(self):
-        """Verify GET /api/health returns 200 and indicates model is loaded."""
         response = self.client.get("/api/health")
         self.assertEqual(response.status_code, 200)
         data = response.get_json()
@@ -36,7 +18,6 @@ class SpamEmailDetectionTestCase(unittest.TestCase):
         self.assertTrue(data["metrics_available"])
 
     def test_02_metrics_endpoint(self):
-        """Verify GET /api/metrics delivers accurate test metrics."""
         response = self.client.get("/api/metrics")
         self.assertEqual(response.status_code, 200)
         data = response.get_json()
@@ -47,7 +28,6 @@ class SpamEmailDetectionTestCase(unittest.TestCase):
         self.assertIn("top_spam_keywords", data)
 
     def test_03_samples_endpoint(self):
-        """Verify GET /api/samples provides curated email samples."""
         response = self.client.get("/api/samples")
         self.assertEqual(response.status_code, 200)
         data = response.get_json()
@@ -57,7 +37,6 @@ class SpamEmailDetectionTestCase(unittest.TestCase):
         self.assertIn("release_notes", data)
 
     def test_04_validation_empty_input(self):
-        """Verify empty email text triggers HTTP 400 validation error."""
         response = self.client.post("/api/predict", json={"email_text": ""})
         self.assertEqual(response.status_code, 400)
         data = response.get_json()
@@ -65,26 +44,22 @@ class SpamEmailDetectionTestCase(unittest.TestCase):
         self.assertIn("empty", data["error"].lower())
 
     def test_05_validation_whitespace_input(self):
-        """Verify whitespace-only string triggers HTTP 400 validation error."""
         response = self.client.post("/api/predict", json={"email_text": "     \n\t   "})
         self.assertEqual(response.status_code, 400)
         data = response.get_json()
         self.assertIn("error", data)
 
     def test_06_validation_short_input(self):
-        """Verify string shorter than 5 chars triggers HTTP 400 error."""
         response = self.client.post("/api/predict", json={"email_text": "Hi!"})
         self.assertEqual(response.status_code, 400)
         data = response.get_json()
         self.assertIn("too short", data["error"].lower())
 
     def test_07_validation_missing_key(self):
-        """Verify missing 'email_text' key triggers HTTP 400 error."""
         response = self.client.post("/api/predict", json={"wrong_key": "some text"})
         self.assertEqual(response.status_code, 400)
 
     def test_08_predict_urgent_phishing(self):
-        """Verify urgent banking credential theft email is classified as SPAM."""
         email_content = (
             "Subject: Urgent: Verify Your Bank Credentials Immediately!\n\n"
             "Dear Customer, your bank account access has been restricted due to suspicious logins. "
@@ -101,7 +76,6 @@ class SpamEmailDetectionTestCase(unittest.TestCase):
         self.assertGreater(len(data["detected_signals"]), 0)
 
     def test_09_predict_lottery_scam(self):
-        """Verify classic international lottery sweepstakes email is classified as SPAM."""
         email_content = (
             "Subject: CONGRATULATIONS! You Won $1,000,000 Cash Prize\n\n"
             "You are the lucky winner of our international sweepstakes draw! "
@@ -115,7 +89,6 @@ class SpamEmailDetectionTestCase(unittest.TestCase):
         self.assertGreater(data["spam_probability"], 50.0)
 
     def test_10_predict_legitimate_work_meeting(self):
-        """Verify regular workplace sync email is classified as NOT SPAM."""
         email_content = (
             "Subject: Agenda for Architecture Review - Tuesday at 10:00 AM\n\n"
             "Hi Alex,\n\n"
@@ -133,7 +106,6 @@ class SpamEmailDetectionTestCase(unittest.TestCase):
         self.assertEqual(data["risk_level"], "SAFE")
 
     def test_11_predict_legitimate_release_notes(self):
-        """Verify project release notes message is classified as NOT SPAM."""
         email_content = (
             "Subject: Documentation and User Guide Updates for Version 2.4 Milestone\n\n"
             "Hi Team,\n\n"
@@ -151,7 +123,6 @@ class SpamEmailDetectionTestCase(unittest.TestCase):
         self.assertGreater(data["ham_probability"], 50.0)
 
     def test_12_predict_suspicious_mixed_content(self):
-        """Verify suspicious email with mixed signals is processed with valid risk level."""
         email_content = (
             "Subject: Special Opportunity: Exclusive free consultation for your team\n\n"
             "Hello,\n"
@@ -168,13 +139,11 @@ class SpamEmailDetectionTestCase(unittest.TestCase):
         self.assertGreater(len(data["detected_signals"]), 0)
 
     def test_13_ui_route_available(self):
-        """Verify GET / renders HTML template with 200 OK."""
         response = self.client.get("/")
         self.assertEqual(response.status_code, 200)
         self.assertIn(b"SPAM EMAIL", response.data)
 
     def test_14_predict_multi_field_payload(self):
-        """Verify prediction using separate subject, sender, and body fields."""
         payload = {
             "subject": "Action Required: Confirm your payroll deposit information",
             "sender": "payroll-verification@internal-hr-portal.xyz",
@@ -193,7 +162,6 @@ class SpamEmailDetectionTestCase(unittest.TestCase):
         self.assertTrue(data["input_summary"]["has_sender"])
 
     def test_15_suspicious_url_detection(self):
-        """Verify suspicious URL detection (IP hostname, abused TLDs, and shorteners)."""
         payload = {
             "subject": "Invoice Follow-Up",
             "sender": "billing@quick-invoices.top",
@@ -212,7 +180,6 @@ class SpamEmailDetectionTestCase(unittest.TestCase):
         )
 
     def test_16_non_guarantee_safety_disclaimer(self):
-        """Verify safety_guarantee is False and a clear defense-in-depth disclaimer is included."""
         payload = {
             "subject": "Quarterly Planning Meeting Notes",
             "sender": "alice@company.com",
@@ -226,21 +193,17 @@ class SpamEmailDetectionTestCase(unittest.TestCase):
         self.assertIn("NOT a guarantee", data["safety_disclaimer"])
 
     def test_17_input_length_limits(self):
-        """Verify oversized payloads trigger HTTP 400 validation errors."""
-        # Body over 100,000 characters
         oversized_body = "A" * 100005
         response = self.client.post("/api/predict", json={"body": oversized_body})
         self.assertEqual(response.status_code, 400)
         data = response.get_json()
         self.assertIn("exceeds maximum allowed size", data["error"])
 
-        # Subject over 1,000 characters
         oversized_subj = "S" * 1005
         response = self.client.post("/api/predict", json={"subject": oversized_subj, "body": "Normal body"})
         self.assertEqual(response.status_code, 400)
 
     def test_18_multi_model_metrics_structure(self):
-        """Verify /api/metrics provides comparisons across all 4 models and dataset statistics."""
         response = self.client.get("/api/metrics")
         self.assertEqual(response.status_code, 200)
         data = response.get_json()
@@ -261,7 +224,6 @@ class SpamEmailDetectionTestCase(unittest.TestCase):
         self.assertEqual(data["test_samples"], 847)
 
     def test_19_model_selection_parameter(self):
-        """Verify selecting baseline vs best model works in prediction API."""
         payload = {
             "email_text": "Subject: Important update\n\nPlease find the project timeline attached.",
             "model": "baseline"
@@ -272,7 +234,6 @@ class SpamEmailDetectionTestCase(unittest.TestCase):
         self.assertEqual(data["model_classification"]["model_name"], "Multinomial Naive Bayes")
 
     def test_20_distinct_phishing_vs_spam_indicators(self):
-        """Verify clear distinction between ML spam classification and heuristic phishing indicators."""
         payload = {
             "subject": "CRITICAL: Suspicious activity on your account",
             "sender": "security-support@paypal-security-alert.xyz",
@@ -281,13 +242,11 @@ class SpamEmailDetectionTestCase(unittest.TestCase):
         response = self.client.post("/api/predict", json=payload)
         self.assertEqual(response.status_code, 200)
         data = response.get_json()
-        # Both ML classification and Phishing assessment are present and structured
         self.assertIn("model_classification", data)
         self.assertIn("phishing_assessment", data)
         self.assertIn("phishing_score", data["phishing_assessment"])
         self.assertIn("threat_signals", data["phishing_assessment"])
         self.assertGreater(len(data["phishing_assessment"]["threat_signals"]), 0)
-
 
 if __name__ == "__main__":
     unittest.main()

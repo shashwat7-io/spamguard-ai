@@ -1,5 +1,3 @@
-
-
 import os
 import re
 import sys
@@ -9,7 +7,6 @@ import email
 import tarfile
 import urllib.request
 from html import unescape
-from typing import Tuple, List, Dict, Any
 
 import numpy as np
 import pandas as pd
@@ -38,7 +35,6 @@ PIPELINE_PATH = os.path.join(MODEL_DIR, "spam_classifier_pipeline.joblib")
 BASELINE_PIPELINE_PATH = os.path.join(MODEL_DIR, "baseline_nb_pipeline.joblib")
 METRICS_PATH = os.path.join(MODEL_DIR, "metrics.json")
 
-
 DATASET_URLS = {
     "ham_easy": {
         "url": "https://spamassassin.apache.org/old/publiccorpus/20030228_easy_ham.tar.bz2",
@@ -60,20 +56,13 @@ DATASET_URLS = {
     }
 }
 
-
 def download_progress_hook(count, block_size, total_size):
-    """Callback to print download progress percentage."""
     if total_size > 0:
         percent = int(count * block_size * 100 / total_size)
-        sys.stdout.write(f"\r  Downloading... {percent}% ({count * block_size / 1024 / 1024:.2f} MB)")
+        sys.stdout.write(f"\rDownloading... {percent}% ({count * block_size / 1024 / 1024:.2f} MB)")
         sys.stdout.flush()
 
-
-def download_and_extract_corpus() -> None:
-    """
-    Downloads SpamAssassin public email corpora archives and extracts raw email files.
-    Skips downloading if the archives or target folders already exist.
-    """
+def download_and_extract_corpus():
     os.makedirs(DATA_DIR, exist_ok=True)
     os.makedirs(MODEL_DIR, exist_ok=True)
 
@@ -81,14 +70,12 @@ def download_and_extract_corpus() -> None:
         archive_path = os.path.join(DATA_DIR, info["archive_name"])
         target_dir = os.path.join(DATA_DIR, info["folder_name"])
 
-        
         if os.path.exists(target_dir) and len(os.listdir(target_dir)) > 10:
-            print(f"[+] Dataset '{key}' already extracted in {target_dir}")
+            print(f"Dataset '{key}' already extracted in {target_dir}")
             continue
 
-        
         if not os.path.exists(archive_path):
-            print(f"[*] Fetching genuine dataset '{key}' from {info['url']}...")
+            print(f"Downloading dataset '{key}' from {info['url']}...")
             try:
                 headers = {'User-Agent': 'Spam-Email-Detection-Downloader/1.0'}
                 req = urllib.request.Request(info["url"], headers=headers)
@@ -103,28 +90,21 @@ def download_and_extract_corpus() -> None:
                         out_file.write(chunk)
                         count += 1
                         download_progress_hook(count, block_size, total_size)
-                print(f"\n[+] Successfully downloaded {info['archive_name']}")
+                print(f"\nDownloaded {info['archive_name']}")
             except Exception as e:
-                print(f"\n[-] Error downloading {key} from {info['url']}: {e}")
+                print(f"\nError downloading {key} from {info['url']}: {e}")
                 raise
 
-        
-        print(f"[*] Extracting {info['archive_name']} into {DATA_DIR}...")
+        print(f"Extracting {info['archive_name']} into {DATA_DIR}...")
         try:
             with tarfile.open(archive_path, "r:bz2") as tar:
                 tar.extractall(path=DATA_DIR)
-            print(f"[+] Extraction complete for {key}.")
+            print(f"Extraction complete for {key}.")
         except Exception as e:
-            print(f"[-] Failed extracting {archive_path}: {e}")
+            print(f"Failed extracting {archive_path}: {e}")
             raise
 
-
-def extract_text_from_email_file(file_path: str) -> str:
-    """
-    Parses a single raw RFC 822 email file:
-    Extracts Subject header, cleans HTML/Plain bodies, handles multipart messages,
-    and returns a consolidated raw text string.
-    """
+def extract_text_from_email_file(file_path):
     try:
         with open(file_path, "rb") as f:
             raw_bytes = f.read()
@@ -139,16 +119,13 @@ def extract_text_from_email_file(file_path: str) -> str:
         except Exception:
             return raw_bytes.decode('latin-1', errors='ignore')
 
-    # Extract subject
     subject = msg.get("Subject", "") or ""
 
-    # Extract body content
     body_parts = []
     if msg.is_multipart():
         for part in msg.walk():
             ctype = part.get_content_type()
             cdisp = str(part.get("Content-Disposition", ""))
-            # Ignore binary attachments
             if "attachment" in cdisp:
                 continue
             if ctype in ["text/plain", "text/html"]:
@@ -176,74 +153,36 @@ def extract_text_from_email_file(file_path: str) -> str:
     body = "\n".join(body_parts)
     full_email = f"Subject: {subject}\n\n{body}".strip()
 
-    
     if not full_email or len(full_email) < 10:
         full_email = raw_bytes.decode("latin-1", errors="ignore")
 
     return full_email
 
-
-def clean_email_text(text: str) -> str:
-    """
-    NLP Text Cleaning & Preprocessing Routine:
-    1. Unescapes HTML entities (&amp;, &lt;, etc.)
-    2. Strips HTML markup tags (<p>, <a href=...>)
-    3. Normalizes URLs to 'httpaddr' token
-    4. Normalizes email addresses to 'emailaddr' token
-    5. Normalizes currency and dollar amounts to 'dollar_amount' token
-    6. Normalizes generic digits to 'num_token'
-    7. Lowercases all characters
-    8. Removes excessive punctuation while preserving clean token semantics
-    9. Strips multiple consecutive whitespaces
-    """
+def clean_email_text(text):
     if not isinstance(text, str):
         return ""
 
-    # Unescape HTML
     text = unescape(text)
-
-    # Strip HTML tags
     text = re.sub(r'<[^>]+>', ' ', text)
-
-    # Normalize web URLs
     text = re.sub(r'http[s]?://[^\s]+', ' httpaddr ', text)
     text = re.sub(r'www\.[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}', ' httpaddr ', text)
-
-    # Normalize email addresses
     text = re.sub(r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}', ' emailaddr ', text)
-
-    # Normalize currency/dollars
     text = re.sub(r'[$£€¥]\s*\d+([.,]\d+)?', ' dollar_amount ', text)
     text = re.sub(r'[$£€¥]', ' dollar_symbol ', text)
-
-    # Normalize numbers
     text = re.sub(r'\b\d+\b', ' num_token ', text)
-
-    # Lowercase
     text = text.lower()
-
-    # Remove special characters except token underscores
     text = re.sub(r'[^a-z0-9_\s]', ' ', text)
-
-    # Collapse consecutive spaces
     text = re.sub(r'\s+', ' ', text).strip()
-
     return text
 
-
-def build_or_load_dataset() -> pd.DataFrame:
-    """
-    Loads preprocessed dataset from data/spam_dataset.csv if present.
-    Otherwise, downloads raw SpamAssassin corpora, parses all messages,
-    cleans the text, and saves to CSV.
-    """
+def build_or_load_dataset():
     if os.path.exists(CSV_PATH):
-        print(f"[+] Found cached processed dataset at {CSV_PATH}")
+        print(f"Found cached dataset at {CSV_PATH}")
         df = pd.read_csv(CSV_PATH)
         df['text'] = df['text'].fillna('')
         return df
 
-    print("[*] Dataset CSV not found. Building dataset from official SpamAssassin corpus...")
+    print("Building dataset from SpamAssassin corpus...")
     download_and_extract_corpus()
 
     records = []
@@ -254,7 +193,7 @@ def build_or_load_dataset() -> pd.DataFrame:
             continue
 
         files = [f for f in os.listdir(folder_path) if not f.startswith(".")]
-        print(f"[*] Processing {len(files)} email files from {info['folder_name']} (Label: {'Spam' if label==1 else 'Ham'})...")
+        print(f"Processing {len(files)} email files from {info['folder_name']}...")
 
         for fname in files:
             file_path = os.path.join(folder_path, fname)
@@ -263,50 +202,28 @@ def build_or_load_dataset() -> pd.DataFrame:
                 continue
 
             cleaned = clean_email_text(raw_text)
-            if len(cleaned.split()) >= 3:  # Keep meaningful emails
+            if len(cleaned.split()) >= 3:
                 records.append({
-                    "raw_text": raw_text[:2000],  # store reasonable snippet for review
+                    "raw_text": raw_text[:2000],
                     "text": cleaned,
                     "label": label,
                     "label_name": "spam" if label == 1 else "ham"
                 })
 
     df = pd.DataFrame(records)
-    # Deduplicate
     df = df.drop_duplicates(subset=["text"])
-    print(f"[+] Total processed emails: {len(df)}")
-    print(f"    - Legitimate (Ham): {sum(df['label'] == 0)}")
-    print(f"    - Spam:             {sum(df['label'] == 1)}")
+    print(f"Total processed emails: {len(df)}")
+    print(f"Legitimate (Ham): {sum(df['label'] == 0)}")
+    print(f"Spam: {sum(df['label'] == 1)}")
 
-    # Save to disk
     df.to_csv(CSV_PATH, index=False)
-    print(f"[+] Saved clean dataset to {CSV_PATH}")
+    print(f"Saved dataset to {CSV_PATH}")
     return df
 
-
-def train_and_evaluate_model() -> Dict[str, Any]:
-    """
-    Multi-Model Training & Benchmarking Pipeline:
-    1. Loads genuine Apache SpamAssassin dataset.
-    2. Performs an 80/20 Stratified train/test split.
-    3. Fits TF-IDF vectorizer on training data only to guarantee ZERO data leakage.
-    4. Trains 4 candidate classifiers:
-       - Multinomial Naive Bayes (Baseline)
-       - Logistic Regression (L2 regularized)
-       - Random Forest (100 estimators, max_depth=40)
-       - Linear SVM (LinearSVC with dual='auto')
-    5. Measures Accuracy, Precision, Recall, F1-Score, and Confusion Matrix.
-    6. Dynamically selects the best-performing model based on test F1-score.
-    7. Retains Multinomial Naive Bayes as the benchmark baseline.
-    8. Serializes best pipeline and baseline pipeline to disk.
-    9. Saves comprehensive evaluation and explainability metrics to JSON.
-    """
+def train_and_evaluate_model():
     start_time = time.time()
-    print("=" * 75)
-    print("SPAM EMAIL DETECTION - MULTI-MODEL ML BENCHMARK & SELECTION PIPELINE")
-    print("=" * 75)
+    print("Training Spam Email Detection Models...")
 
-    # 1. Load Dataset
     df = build_or_load_dataset()
     X = df["text"]
     y = df["label"]
@@ -315,9 +232,7 @@ def train_and_evaluate_model() -> Dict[str, Any]:
     ham_count = int(sum(y == 0))
     spam_count = int(sum(y == 1))
 
-    # 2. Stratified Train / Test Split (80% Train, 20% Test)
-    # Using stratify=y to ensure identical class proportions and prevent leakage
-    print("\n[*] Splitting dataset: 80% Training, 20% Testing (Stratified)...")
+    print("Splitting dataset into 80% train and 20% test...")
     X_train, X_test, y_train, y_test = train_test_split(
         X, y,
         test_size=0.20,
@@ -325,12 +240,11 @@ def train_and_evaluate_model() -> Dict[str, Any]:
         stratify=y
     )
 
-    print(f"    - Total Corpus: {total_samples} emails (Ham: {ham_count}, Spam: {spam_count})")
-    print(f"    - Training Set: {len(X_train)} samples")
-    print(f"    - Testing Set:  {len(X_test)} samples")
+    print(f"Total: {total_samples} (Ham: {ham_count}, Spam: {spam_count})")
+    print(f"Train: {len(X_train)} samples")
+    print(f"Test:  {len(X_test)} samples")
 
-    # 3. TF-IDF Feature Extraction (Fit ONLY on Training Data)
-    print("\n[*] Initializing TF-IDF Vectorizer (15,000 max features, unigrams + bigrams)...")
+    print("Fitting TF-IDF Vectorizer...")
     tfidf = TfidfVectorizer(
         ngram_range=(1, 2),
         sublinear_tf=True,
@@ -345,9 +259,8 @@ def train_and_evaluate_model() -> Dict[str, Any]:
     X_test_vec = tfidf.transform(X_test)
     vec_time = round(time.time() - train_vec_start, 3)
     vocab_size = len(tfidf.vocabulary_)
-    print(f"[+] TF-IDF Vectorization complete in {vec_time}s. Vocabulary size: {vocab_size} n-grams.")
+    print(f"TF-IDF Vectorization complete in {vec_time}s. Vocab size: {vocab_size}")
 
-    # 4. Define Candidate Model Suite
     candidate_models = {
         "Multinomial Naive Bayes": {
             "instance": MultinomialNB(alpha=0.1),
@@ -375,24 +288,18 @@ def train_and_evaluate_model() -> Dict[str, Any]:
         }
     }
 
-    # 5. Train and Evaluate Each Candidate
-    print("\n" + "=" * 75)
-    print("TRAINING & EVALUATING CANDIDATE MODELS (HELD-OUT TEST PARTITION)")
-    print("=" * 75)
-
     comparison_results = []
     trained_estimators = {}
     reports = {}
 
     for name, config in candidate_models.items():
         estimator = config["instance"]
-        print(f"\n[*] Training {name}...")
+        print(f"Training {name}...")
         t0 = time.time()
         estimator.fit(X_train_vec, y_train)
         fit_duration = round(time.time() - t0, 4)
         trained_estimators[name] = estimator
 
-        # Predict on held-out test partition
         y_pred = estimator.predict(X_test_vec)
 
         acc = float(accuracy_score(y_test, y_pred))
@@ -430,15 +337,11 @@ def train_and_evaluate_model() -> Dict[str, Any]:
         }
         comparison_results.append(model_stat)
 
-        print(f"    - Accuracy:  {acc * 100:.2f}%")
-        print(f"    - Precision: {prec * 100:.2f}%")
-        print(f"    - Recall:    {rec * 100:.2f}%")
-        print(f"    - F1-Score:  {f1 * 100:.2f}%")
-        print(f"    - Latency:   {fit_duration}s | TN={tn}, FP={fp}, FN={fn}, TP={tp}")
+        print(f"  Accuracy:  {acc * 100:.2f}%")
+        print(f"  Precision: {prec * 100:.2f}%")
+        print(f"  Recall:    {rec * 100:.2f}%")
+        print(f"  F1-Score:  {f1 * 100:.2f}%")
 
-    # 6. Dynamic Model Selection based on Measured Test Results
-    # Selection criterion: Highest test F1-score (harmonic balance of precision and recall)
-    # Secondary criterion: Accuracy
     comparison_results.sort(key=lambda m: (m["f1_score"], m["accuracy"]), reverse=True)
     best_model_name = comparison_results[0]["model_name"]
     baseline_model_name = "Multinomial Naive Bayes"
@@ -446,16 +349,11 @@ def train_and_evaluate_model() -> Dict[str, Any]:
     for m in comparison_results:
         m["is_best"] = (m["model_name"] == best_model_name)
 
-    print("\n" + "=" * 75)
-    print(f"MODEL SELECTION VERDICT: Best Performer is '{best_model_name}'")
-    print(f"Baseline Retained:      '{baseline_model_name}'")
-    print("=" * 75)
+    print(f"Best Model: {best_model_name}")
 
     best_estimator = trained_estimators[best_model_name]
     baseline_estimator = trained_estimators[baseline_model_name]
 
-    # 7. Construct Full Inference Pipelines
-    # Scikit-Learn Pipeline combining TF-IDF and Classifier
     best_pipeline = Pipeline([
         ('tfidf', tfidf),
         ('classifier', best_estimator)
@@ -466,23 +364,17 @@ def train_and_evaluate_model() -> Dict[str, Any]:
         ('nb', baseline_estimator)
     ])
 
-    # Serialize Best Pipeline to Disk
-    print(f"\n[*] Serializing best model pipeline to {PIPELINE_PATH}...")
+    print(f"Saving best model pipeline to {PIPELINE_PATH}...")
     joblib.dump(best_pipeline, PIPELINE_PATH)
-    print(f"[+] Serialized best pipeline ({best_model_name}) successfully.")
 
-    # Serialize Baseline Pipeline to Disk
-    print(f"[*] Serializing baseline pipeline to {BASELINE_PIPELINE_PATH}...")
+    print(f"Saving baseline pipeline to {BASELINE_PIPELINE_PATH}...")
     joblib.dump(baseline_pipeline, BASELINE_PIPELINE_PATH)
-    print(f"[+] Serialized baseline pipeline ({baseline_model_name}) successfully.")
 
-    # 8. Extract Explainable AI Feature Weights
     feature_names = np.array(tfidf.get_feature_names_out())
     top_spam_keywords = []
     top_ham_keywords = []
 
     if hasattr(best_estimator, "coef_"):
-        # Linear models (Linear SVM, Logistic Regression)
         weights = best_estimator.coef_[0]
         top_spam_indices = np.argsort(weights)[-30:][::-1]
         top_ham_indices = np.argsort(weights)[:30]
@@ -495,7 +387,6 @@ def train_and_evaluate_model() -> Dict[str, Any]:
             for i in top_ham_indices
         ]
     elif hasattr(best_estimator, "feature_log_prob_"):
-        # Naive Bayes log-odds ratio
         log_odds = best_estimator.feature_log_prob_[1] - best_estimator.feature_log_prob_[0]
         top_spam_indices = np.argsort(log_odds)[-30:][::-1]
         top_ham_indices = np.argsort(log_odds)[:30]
@@ -508,7 +399,6 @@ def train_and_evaluate_model() -> Dict[str, Any]:
             for i in top_ham_indices
         ]
 
-    # Baseline Naive Bayes log-odds for reference
     nb_log_odds = baseline_estimator.feature_log_prob_[1] - baseline_estimator.feature_log_prob_[0]
     nb_top_spam_indices = np.argsort(nb_log_odds)[-30:][::-1]
     nb_top_ham_indices = np.argsort(nb_log_odds)[:30]
@@ -521,11 +411,9 @@ def train_and_evaluate_model() -> Dict[str, Any]:
         for i in nb_top_ham_indices
     ]
 
-    # Find the stats record for the best model and baseline
     best_stats = next(item for item in comparison_results if item["model_name"] == best_model_name)
     baseline_stats = next(item for item in comparison_results if item["model_name"] == baseline_model_name)
 
-    # 9. Structure Final Evaluation Metrics JSON
     metrics_data = {
         "model_name": f"Spam Email Detection {best_model_name} + TF-IDF",
         "best_model_name": best_model_name,
@@ -571,12 +459,11 @@ def train_and_evaluate_model() -> Dict[str, Any]:
 
     with open(METRICS_PATH, "w", encoding="utf-8") as f:
         json.dump(metrics_data, f, indent=2)
-    print(f"[+] All empirical metrics & model comparisons saved to {METRICS_PATH}")
+    print(f"Metrics saved to {METRICS_PATH}")
 
     total_duration = round(time.time() - start_time, 2)
-    print(f"\n[+] Entire multi-model pipeline completed in {total_duration}s.")
+    print(f"Pipeline finished in {total_duration}s.")
     return metrics_data
-
 
 if __name__ == "__main__":
     train_and_evaluate_model()

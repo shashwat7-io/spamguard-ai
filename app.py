@@ -1,58 +1,47 @@
-
-
 import os
 import re
 import json
 import time
 from html import unescape
-from typing import Dict, Any, List, Tuple, Optional
 
 from flask import Flask, request, jsonify, render_template
 import numpy as np
 import joblib
 
-# Application Initialization
 app = Flask(__name__)
 app.config['JSON_SORT_KEYS'] = False
 
-# Paths configuration
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 MODEL_DIR = os.path.join(BASE_DIR, "model")
 PIPELINE_PATH = os.path.join(MODEL_DIR, "spam_classifier_pipeline.joblib")
 BASELINE_PIPELINE_PATH = os.path.join(MODEL_DIR, "baseline_nb_pipeline.joblib")
 METRICS_PATH = os.path.join(MODEL_DIR, "metrics.json")
 
-# Maximum input limits to prevent Resource Exhaustion / Denial of Service
 MAX_BODY_LENGTH = 100000
 MAX_SUBJECT_LENGTH = 1000
 MAX_SENDER_LENGTH = 320
 
-# Global variables for cached model pipelines and metrics
-pipeline = None               # Primary (Best-performing: Linear SVM)
-baseline_pipeline = None      # Baseline (Multinomial Naive Bayes)
-metrics_data: Dict[str, Any] = {}
+pipeline = None
+baseline_pipeline = None
+metrics_data = {}
 
-# High-risk TLDs commonly abused in disposable spam and phishing campaigns
 SUSPICIOUS_TLDS = {
     "xyz", "top", "click", "loan", "work", "gq", "cf", "tk", "ml",
     "fit", "surf", "monster", "club", "buzz", "rest", "icu", "download",
     "accountant", "racing", "kim", "party", "review", "country", "stream"
 }
 
-# Known URL shorteners used to obfuscate destinations
 URL_SHORTENERS = {
     "bit.ly", "tinyurl.com", "t.co", "is.gd", "ow.ly", "buff.ly",
     "cutt.ly", "rb.gy", "goo.gl", "shorturl.at"
 }
 
-# Targeted financial, tech, and enterprise brand lookalikes
 TARGETED_BRANDS = [
     "paypal", "apple", "google", "bankofamerica", "chase", "wellsfargo",
     "citibank", "microsoft", "netflix", "amazon", "facebook", "instagram",
     "binance", "coinbase", "metamask", "blockchain", "irs", "gov", "dhl", "fedex"
 ]
 
-# Structured Phishing & Threat Keyword Patterns
 THREAT_PATTERNS = [
     {
         "category": "Credential Theft",
@@ -112,60 +101,41 @@ THREAT_PATTERNS = [
     }
 ]
 
-
-def load_model_and_metrics() -> None:
-    """
-    Loads serialized ML pipelines and metrics JSON into memory.
-    Supports both best model (Linear SVM) and baseline (MultinomialNB).
-    """
+def load_model_and_metrics():
     global pipeline, baseline_pipeline, metrics_data
 
-    
     if os.path.exists(PIPELINE_PATH):
         try:
             pipeline = joblib.load(PIPELINE_PATH)
-            print(f"[+] Loaded Primary ML pipeline from {PIPELINE_PATH}")
+            print("Loaded primary model from", PIPELINE_PATH)
         except Exception as e:
-            print(f"[-] Error loading primary pipeline: {e}")
+            print("Error loading model:", e)
             pipeline = None
     else:
-        print(f"[!] Pipeline not found at {PIPELINE_PATH}. Please run: python train_model.py")
+        print("Model file not found:", PIPELINE_PATH)
         pipeline = None
 
-    
     if os.path.exists(BASELINE_PIPELINE_PATH):
         try:
             baseline_pipeline = joblib.load(BASELINE_PIPELINE_PATH)
-            print(f"[+] Loaded Baseline ML pipeline from {BASELINE_PIPELINE_PATH}")
+            print("Loaded baseline model from", BASELINE_PIPELINE_PATH)
         except Exception as e:
-            print(f"[-] Error loading baseline pipeline: {e}")
+            print("Error loading baseline model:", e)
             baseline_pipeline = None
 
-    
     if os.path.exists(METRICS_PATH):
         try:
             with open(METRICS_PATH, "r", encoding="utf-8") as f:
                 metrics_data = json.load(f)
-            print(f"[+] Loaded model evaluation metrics from {METRICS_PATH}")
+            print("Loaded metrics from", METRICS_PATH)
         except Exception as e:
-            print(f"[-] Error loading metrics: {e}")
+            print("Error loading metrics:", e)
             metrics_data = {}
     else:
-        print(f"[!] Metrics not found at {METRICS_PATH}")
+        print("Metrics file not found:", METRICS_PATH)
         metrics_data = {}
 
-
-def clean_email_text(text: str) -> str:
-    """
-    NLP Text Preprocessing Routine (must match training pipeline exactly):
-    - Unescape HTML characters
-    - Strip HTML markup
-    - Normalize URLs to 'httpaddr'
-    - Normalize email addresses to 'emailaddr'
-    - Normalize currency amounts to 'dollar_amount' / 'dollar_symbol'
-    - Normalize digits to 'num_token'
-    - Lowercase and collapse whitespace
-    """
+def clean_email_text(text):
     if not isinstance(text, str):
         return ""
 
@@ -182,19 +152,8 @@ def clean_email_text(text: str) -> str:
     text = re.sub(r'\s+', ' ', text).strip()
     return text
 
-
-def inspect_urls_for_threats(text: str) -> List[Dict[str, Any]]:
-    """
-    Scans email text for hyperlinks and evaluates phishing/evasion characteristics:
-    - IP address hostnames (e.g. http://192.168.1.1/...)
-    - Known suspicious or abused Top-Level Domains (.xyz, .top, .click, etc.)
-    - Brand lookalike spoofing (e.g. login-paypal-verification.com)
-    - URL shorteners (bit.ly, tinyurl.com)
-    - Embedded '@' authentication evasion
-    - Non-standard HTTP ports
-    """
+def inspect_urls_for_threats(text):
     results = []
-    
     url_matches = re.findall(r'https?://[^\s<>"\'\)]+|www\.[^\s<>"\'\)]+', text, re.IGNORECASE)
 
     for raw_url in url_matches:
@@ -202,18 +161,15 @@ def inspect_urls_for_threats(text: str) -> List[Dict[str, Any]]:
         reasons = []
         severity = "LOW"
 
-        
         ip_match = re.search(r'https?://(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})', url_clean)
         if ip_match:
             reasons.append(f"Direct IP-based URL ({ip_match.group(1)}) bypassing DNS verification")
             severity = "CRITICAL"
 
-        
         host_match = re.search(r'https?://([^/:\s]+)', url_clean, re.IGNORECASE)
         host = host_match.group(1).lower() if host_match else ""
 
         if host:
-            # Check TLD
             parts = host.split(".")
             if len(parts) >= 2:
                 tld = parts[-1].lower()
@@ -221,25 +177,21 @@ def inspect_urls_for_threats(text: str) -> List[Dict[str, Any]]:
                     reasons.append(f"Abused / High-Risk TLD (.{tld}) commonly associated with phishing campaigns")
                     severity = "HIGH" if severity != "CRITICAL" else severity
 
-            # Check URL shorteners
             if any(host == shortener or host.endswith("." + shortener) for shortener in URL_SHORTENERS):
                 reasons.append(f"Obfuscated URL shortener ({host}) hiding real destination")
                 severity = "HIGH" if severity != "CRITICAL" else severity
 
-            
             for brand in TARGETED_BRANDS:
                 if brand in host and not host.endswith(f".{brand}.com") and not host == f"{brand}.com":
                     reasons.append(f"Deceptive brand impersonation keyword detected: '{brand}' in '{host}'")
                     severity = "CRITICAL"
                     break
 
-            
             if host.count("-") >= 2:
                 reasons.append("Multiple hyphenated subdomains commonly utilized in disposable credential harvesters")
                 if severity == "LOW":
                     severity = "MEDIUM"
 
-        # Non-standard ports
         port_match = re.search(r'https?://[^/]+:(\d+)', url_clean)
         if port_match:
             port = port_match.group(1)
@@ -248,7 +200,6 @@ def inspect_urls_for_threats(text: str) -> List[Dict[str, Any]]:
                 if severity == "LOW":
                     severity = "MEDIUM"
 
-        # '@' evasion inside URL
         if "@" in url_clean.split("?")[0].replace("http://", "").replace("https://", ""):
             reasons.append("Credential obfuscation attempt utilizing '@' authority in URL")
             severity = "CRITICAL"
@@ -263,12 +214,7 @@ def inspect_urls_for_threats(text: str) -> List[Dict[str, Any]]:
 
     return results
 
-
-def inspect_sender_security(sender: str) -> Dict[str, Any]:
-    """
-    Evaluates the sender email address for spoofing, free-mail mismatches,
-    and syntactic anomalies.
-    """
+def inspect_sender_security(sender):
     if not sender or not isinstance(sender, str):
         return {
             "provided": False,
@@ -280,16 +226,13 @@ def inspect_sender_security(sender: str) -> Dict[str, Any]:
     flags = []
     is_suspicious = False
 
-    # Extract email address if format is "Name <user@domain.com>"
     email_match = re.search(r'<([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})>', sender)
     addr = email_match.group(1) if email_match else sender
 
-    # Basic regex validation
     if not re.match(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$', addr):
         flags.append("Malformed or non-standard RFC email syntax")
         is_suspicious = True
 
-    # Domain checks
     if "@" in addr:
         local_part, domain = addr.split("@", 1)
         domain = domain.lower()
@@ -299,7 +242,6 @@ def inspect_sender_security(sender: str) -> Dict[str, Any]:
             flags.append(f"Sender domain uses high-abuse TLD (.{tld})")
             is_suspicious = True
 
-        # Brand impersonation in local-part while using free webmail
         free_providers = ["gmail.com", "yahoo.com", "hotmail.com", "outlook.com", "aol.com"]
         for brand in ["security", "support", "billing", "account", "verification", "service"]:
             if brand in local_part.lower() and domain in free_providers:
@@ -307,7 +249,6 @@ def inspect_sender_security(sender: str) -> Dict[str, Any]:
                 is_suspicious = True
                 break
 
-        # High entropy random alphanumeric localpart
         if len(local_part) >= 12 and sum(c.isdigit() for c in local_part) >= 5:
             flags.append("Randomized high-entropy address typical of automated botnet mailers")
             is_suspicious = True
@@ -319,24 +260,9 @@ def inspect_sender_security(sender: str) -> Dict[str, Any]:
         "flags": flags
     }
 
-
-def analyze_email_threats(
-    subject: str,
-    sender: str,
-    body: str,
-    raw_text: str,
-    cleaned_text: str
-) -> Dict[str, Any]:
-    """
-    Comprehensive rule-based security scanner:
-    - Extracts phishing keyword triggers
-    - Analyzes URL risks
-    - Evaluates sender address
-    - Computes an independent heuristic Phishing Score (0-100)
-    """
+def analyze_email_threats(subject, sender, body, raw_text, cleaned_text):
     combined_raw = f"{subject} {sender} {body} {raw_text}".lower()
 
-    # 1. Threat Keyword Patterns
     matched_signals = []
     phishing_score = 0
 
@@ -352,7 +278,6 @@ def analyze_email_threats(
             })
             phishing_score += item["weight"]
 
-    # 2. Suspicious URL Analysis
     url_results = inspect_urls_for_threats(f"{subject} {body} {raw_text}")
     suspicious_urls = [u for u in url_results if u["is_suspicious"]]
     critical_urls = [u for u in url_results if u["severity"] == "CRITICAL"]
@@ -362,12 +287,10 @@ def analyze_email_threats(
     elif suspicious_urls:
         phishing_score += 20
 
-    # 3. Sender Security
     sender_eval = inspect_sender_security(sender)
     if sender_eval.get("is_suspicious"):
         phishing_score += 20
 
-    # 4. Currency / Financial Claims
     currency_matches = re.findall(r'[$£€¥]\s*\d+', raw_text)
     if currency_matches:
         matched_signals.append({
@@ -378,10 +301,8 @@ def analyze_email_threats(
         })
         phishing_score += 10
 
-    # Cap score at 100
     phishing_score = min(100, phishing_score)
 
-    # Determine Phishing Risk Level
     if phishing_score >= 60 or critical_urls:
         phishing_risk = "CRITICAL"
         phishing_verdict = "Active Phishing Threat Detected"
@@ -410,17 +331,9 @@ def analyze_email_threats(
         "sender_analysis": sender_eval
     }
 
-
-def compute_model_probabilities(active_pipe: Any, cleaned_text: str) -> Tuple[int, float, float]:
-    """
-    Extracts prediction and class probabilities from any Scikit-Learn pipeline.
-    Handles classifiers with native `predict_proba` (MNB, Logistic Regression, Random Forest)
-    as well as Linear Support Vector Machines (LinearSVC) via Platt/Sigmoid calibration.
-    Returns: (predicted_class, ham_probability_percent, spam_probability_percent)
-    """
+def compute_model_probabilities(active_pipe, cleaned_text):
     pred_int = int(active_pipe.predict([cleaned_text])[0])
 
-    # Check if classifier or pipeline exposes predict_proba
     classifier = None
     for step_name in ['classifier', 'nb', 'svm', 'model', 'clf']:
         if step_name in active_pipe.named_steps:
@@ -432,22 +345,17 @@ def compute_model_probabilities(active_pipe: Any, cleaned_text: str) -> Tuple[in
         ham_pct = float(probs[0]) * 100.0
         spam_pct = float(probs[1]) * 100.0
     elif classifier is not None and hasattr(classifier, 'decision_function'):
-        # Platt/Sigmoid scaling for Linear SVM:
-        # P(Spam) = 1 / (1 + exp(-6.0 * decision))
         df = float(active_pipe.decision_function([cleaned_text])[0])
         scaled_df = max(-25.0, min(25.0, df * 6.0))
         spam_prob = 1.0 / (1.0 + np.exp(-scaled_df))
         spam_pct = float(spam_prob) * 100.0
         ham_pct = 100.0 - spam_pct
     else:
-        # Fallback to binary confidence
         spam_pct = 95.0 if pred_int == 1 else 5.0
         ham_pct = 100.0 - spam_pct
 
     return pred_int, ham_pct, spam_pct
 
-
-# Benchmark sample emails for testing & experimentation
 BENCHMARK_SAMPLES = {
     "phishing": {
         "title": "🚨 Urgent Security / Account Phishing",
@@ -567,27 +475,12 @@ BENCHMARK_SAMPLES = {
     }
 }
 
-
-# =============================================================================
-# WEB ROUTES
-# =============================================================================
-
 @app.route("/")
 def index():
-    """Renders the main Spam Email Detection landing page, analyzer console & dashboard."""
     return render_template("index.html")
-
-
-# =============================================================================
-# RESTful API ENDPOINTS
-# =============================================================================
 
 @app.route("/api/health", methods=["GET"])
 def health():
-    """
-    Health check endpoint returning system status, model readiness,
-    and multi-model availability.
-    """
     is_ready = pipeline is not None
     active_model_name = metrics_data.get("best_model_name", "Linear SVM") if is_ready else "None"
 
@@ -602,18 +495,8 @@ def health():
         "timestamp": time.strftime("%Y-%m-%d %H:%M:%S UTC", time.gmtime())
     }), 200
 
-
 @app.route("/api/metrics", methods=["GET"])
 def get_metrics():
-    """
-    Returns empirical evaluation metrics across all 4 benchmarked models:
-    - Multinomial Naive Bayes (Baseline)
-    - Logistic Regression
-    - Random Forest
-    - Linear SVM (Best Model)
-    Includes confusion matrices, train/test counts, dataset statistics,
-    and explainability feature weights.
-    """
     if not metrics_data:
         if os.path.exists(METRICS_PATH):
             load_model_and_metrics()
@@ -625,29 +508,14 @@ def get_metrics():
 
     return jsonify(metrics_data), 200
 
-
 @app.route("/api/samples", methods=["GET"])
 def get_samples():
-    """
-    Provides curated sample emails with separate subject, sender, and body
-    for interactive testing.
-    """
     return jsonify(BENCHMARK_SAMPLES), 200
-
 
 @app.route("/api/predict", methods=["POST"])
 def predict():
-    """
-    Comprehensive Threat Detection API:
-    - Accepts multi-field input: {subject, sender, body} OR single {email_text}
-    - Classifies combined subject + body through Scikit-Learn NLP pipeline
-    - Executes rule-based suspicious URL & phishing keyword analysis
-    - Clearly distinguishes statistical ML spam verdict from heuristic phishing indicators
-    - Defense-in-depth: Never guarantees an email is safe.
-    """
     start_time = time.time()
 
-    # Verify model is ready
     if pipeline is None:
         load_model_and_metrics()
         if pipeline is None:
@@ -655,28 +523,24 @@ def predict():
                 "error": "Machine learning model pipeline is not loaded. Please execute: python train_model.py"
             }), 503
 
-    # Parse and validate incoming JSON payload
     data = request.get_json(silent=True)
     if not data or not isinstance(data, dict):
         return jsonify({
             "error": "Invalid JSON request payload. Expected format: {'subject': '...', 'sender': '...', 'body': '...'} or {'email_text': '...'}"
         }), 400
 
-    # Extract fields with backwards-compatibility support
     subject = data.get("subject", "")
     sender = data.get("sender", data.get("sender_email", ""))
     body = data.get("body", "")
     raw_email_text = data.get("email_text", "")
     model_choice = str(data.get("model", "best")).lower()
 
-    # Input type validation
     if not isinstance(subject, str) or not isinstance(sender, str) or not isinstance(body, str):
         return jsonify({"error": "Fields 'subject', 'sender', and 'body' must be strings."}), 400
 
     if raw_email_text is not None and not isinstance(raw_email_text, str):
         return jsonify({"error": "Field 'email_text' must be a string."}), 400
 
-    # Length limits to prevent Denial of Service / Memory Exhaustion
     if len(body) > MAX_BODY_LENGTH:
         return jsonify({
             "error": f"Email body exceeds maximum allowed size of {MAX_BODY_LENGTH:,} characters."
@@ -697,15 +561,12 @@ def predict():
             "error": f"Email content exceeds maximum allowed size of {MAX_BODY_LENGTH:,} characters."
         }), 400
 
-    # Combine subject and body for classification
     if raw_email_text and not body:
-        # Check if raw_email_text has a Subject header
         subj_match = re.search(r'^Subject:\s*(.+)$', raw_email_text, re.MULTILINE | re.IGNORECASE)
         if subj_match and not subject:
             subject = subj_match.group(1).strip()
         full_text = raw_email_text.strip()
     else:
-        # Combine subject and body
         parts = []
         if subject.strip():
             parts.append(f"Subject: {subject.strip()}")
@@ -713,7 +574,6 @@ def predict():
             parts.append(body.strip())
         full_text = "\n\n".join(parts).strip()
 
-    # Emptiness and minimum length checks
     if not full_text:
         return jsonify({
             "error": "Email content cannot be empty. Please provide email body, subject, or text."
@@ -724,7 +584,6 @@ def predict():
             "error": "Email content is too short for accurate classification (minimum 5 characters required)."
         }), 400
 
-    # Model selection (Best vs Baseline)
     active_pipe = pipeline
     active_model_name = metrics_data.get("best_model_name", "Linear SVM")
 
@@ -732,12 +591,10 @@ def predict():
         active_pipe = baseline_pipeline
         active_model_name = "Multinomial Naive Bayes"
 
-    # NLP Preprocessing
     cleaned_text = clean_email_text(full_text)
     if not cleaned_text or len(cleaned_text.split()) < 1:
         cleaned_text = full_text.lower()
 
-    # Execute Machine Learning Inference
     try:
         pred_int, ham_prob, spam_prob = compute_model_probabilities(active_pipe, cleaned_text)
     except Exception as e:
@@ -749,7 +606,6 @@ def predict():
     ml_prediction_label = "SPAM" if is_spam else "NOT SPAM"
     ml_confidence = spam_prob if is_spam else ham_prob
 
-    # Execute Rule-Based Suspicious URL & Phishing Threat Intelligence
     threat_assessment = analyze_email_threats(
         subject=subject,
         sender=sender,
@@ -758,8 +614,6 @@ def predict():
         cleaned_text=cleaned_text
     )
 
-    # Correlate Statistical ML Prediction with Heuristic Phishing Indicators
-    # Determine Unified Severity Level
     phishing_risk = threat_assessment["phishing_risk_level"]
     phishing_score = threat_assessment["phishing_score"]
 
@@ -779,16 +633,13 @@ def predict():
         verdict_summary = "Borderline communication with marketing patterns or external hyperlinks."
         security_action = "Inspect sender headers and verify legitimacy through a secondary communication channel."
     else:
-        # Statistical ham pattern - defense in depth applies
         risk_level = "SAFE"
         risk_color = "#10B981"
         verdict_summary = "Low-risk communication matching legitimate correspondence patterns."
         security_action = "Standard reading safe, but zero detected indicators does NOT guarantee safety. Exercise vigilance."
 
-    # Backwards-compatible detected_signals list
     detected_signals = threat_assessment["threat_signals"]
 
-    # Add URL signals to legacy detected_signals
     for s_url in threat_assessment["url_analysis"]["suspicious_urls"]:
         for reason in s_url["reasons"]:
             detected_signals.append({
@@ -799,7 +650,6 @@ def predict():
 
     inference_ms = round((time.time() - start_time) * 1000, 2)
 
-    # Mandatory Defense-In-Depth Safety Disclaimer
     safety_disclaimer = (
         "Defense-in-Depth Notice: Machine learning models and heuristic rules assess statistical "
         "and lexical indicators. A classification of 'NOT SPAM' or 'LOW RISK' is NOT a guarantee "
@@ -809,7 +659,6 @@ def predict():
 
     response_payload = {
         "success": True,
-        # Legacy fields for complete client and test backwards-compatibility
         "prediction": ml_prediction_label,
         "is_spam": is_spam,
         "confidence": round(ml_confidence, 2),
@@ -822,8 +671,6 @@ def predict():
         "detected_signals": detected_signals,
         "safety_guarantee": False,
         "safety_disclaimer": safety_disclaimer,
-
-        # Granular Model Classification Details
         "model_classification": {
             "model_name": active_model_name,
             "prediction": ml_prediction_label,
@@ -832,11 +679,7 @@ def predict():
             "spam_probability": round(spam_prob, 2),
             "ham_probability": round(ham_prob, 2)
         },
-
-        # Distinct Heuristic Phishing Assessment
         "phishing_assessment": threat_assessment,
-
-        # Input Telemetry & Metadata
         "input_summary": {
             "has_subject": bool(subject.strip()),
             "has_sender": bool(sender.strip()),
@@ -858,15 +701,10 @@ def predict():
 
     return jsonify(response_payload), 200
 
-
-# Initial loading when module is imported
 load_model_and_metrics()
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5001))
     host = os.environ.get("HOST", "0.0.0.0")
-    print(f"\n==================================================================")
-    print(f" SPAM EMAIL DETECTION SERVER ONLINE (v2.0)")
-    print(f" Local URL: http://{host}:{port}")
-    print(f"==================================================================\n")
-    app.run(host=host, port=port, debug=False)
+    print(f"Starting server at http://{host}:{port}")
+    app.run(host=host, port=port, debug=True)
